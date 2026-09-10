@@ -1,27 +1,41 @@
-"""Voorbeeld: loopt de registratie van Amsterdam achter op de luchtfoto?
+"""Loopt de registratie van Amsterdam achter op de luchtfoto?
 
-Je geeft de fysieke grens van een gebied mee, de pijplijn haalt daar de luchtfoto op,
-classificeert groen en verharding, en legt die contouren naast de groenobjecten en
-verhardingen uit de objectenregistratie openbare ruimte. Wat eruit komt is een lijst met
-plekken waar beeld en registratie niet meer op elkaar aansluiten:
+Je geeft een gebied mee, de pijplijn haalt daar de luchtfoto op, classificeert groen en
+verharding, en legt die contouren naast de groenobjecten en verhardingen uit de
+objectenregistratie openbare ruimte. Wat eruit komt is een lijst met plekken waar beeld
+en registratie niet meer op elkaar aansluiten:
 
     ontbreekt_in_registratie        op de foto zichtbaar, nergens geregistreerd
     niet_zichtbaar_op_luchtfoto     geregistreerd, maar de foto toont er iets anders
     afwijkende_geometrie            het vlak klopt maar voor een deel
     geen_registratie_op_maaiveld    maaiveld dat in geen enkel geregistreerd vlak valt
 
-Draaien vanuit de projectmap:
+Draaien, met het voorbeeldgebied in Centrum:
 
     python main.py
 
-De classificatie zelf staat in luchtfoto_objecten/detectie/, nu regelgebaseerd op kleur
-en textuur. Dat is de plek om andere modellen te proberen: een detector hoeft alleen
-dezelfde GeoDataFrame met vlakken terug te geven, dan werkt de vergelijking hieronder
-ongewijzigd. detectie/sam_contouren.py laat zien hoe dat eruitziet voor Segment Anything.
+Een eigen gebied, in Rijksdriehoek (EPSG:28992). QGIS toont een extent als
+xmin, xmax, ymin, ymax, dus die volgorde kan zo overgenomen worden:
+
+    python main.py --extent 121641.1653 122215.9413 486408.2909 487051.9774 --naam centrum
+
+Of in de volgorde die de rest van dit project gebruikt, of vanuit een bestand met de
+echte gebiedsgrens (GeoJSON, Shapefile, GeoPackage; elke polygon mag, niet alleen een
+rechthoek):
+
+    python main.py --bbox 121641 486408 122215 487051 --naam centrum
+    python main.py --grens data/aoi/buurt.geojson --naam buurt
+
+Met --modellen wordt er ook een modelvergelijking gedraaid: de huidige drempels naast
+logistische regressie, random forest en gradient boosting. Dat vraagt scikit-learn,
+zie requirements-ml.txt.
+
+Alles komt terecht in output/<naam>/.
 """
 
 from __future__ import annotations
 
+import argparse
 import logging
 from pathlib import Path
 
@@ -35,16 +49,9 @@ from luchtfoto_objecten.pipeline import voer_analyse_uit
 from luchtfoto_objecten.uitvoer import schrijf_geopackage
 from luchtfoto_objecten.vergelijking.signalering import BEVESTIGD
 
-# Het analysegebied. Vul GRENS_BESTAND met een GeoJSON, Shapefile of GeoPackage met de
-# echte gebiedsgrens, of laat het leeg en pas GRENS_POLYGON aan (RD, EPSG:28992). Elke
-# polygon mag hier staan, de rechthoek hieronder is alleen het voorbeeld.
-GRENS_BESTAND: Path | None = None
-# QGIS toont een extent als xmin, xmax, ymin, ymax; box() verwacht xmin, ymin, xmax, ymax.
-GRENS_POLYGON = box(121641.1653, 486408.2909, 122215.9413, 487051.9774)
-GEBIEDSNAAM = "centrum_vergelijking"
-UITVOER_MAP = Path("output") / GEBIEDSNAAM
+# Voorbeeldgebied in Amsterdam Centrum, gebruikt als je geen gebied opgeeft.
+VOORBEELD_EXTENT = (121641.1653, 122215.9413, 486408.2909, 487051.9774)
 
-# Hoeveel afwijkingen we op het scherm tonen; alles staat altijd in de GeoPackage.
 TOON_AANTAL = 25
 PRIORITEITSVOLGORDE = {"hoog": 0, "midden": 1, "laag": 2}
 AFWIJKING_KOLOMMEN = [
@@ -52,16 +59,39 @@ AFWIJKING_KOLOMMEN = [
 ]
 
 
-def laad_grens():
+def bouw_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Vergelijk de registratie van Amsterdam met de luchtfoto voor één gebied."
+    )
+    gebiedsgroep = parser.add_mutually_exclusive_group()
+    gebiedsgroep.add_argument(
+        "--extent", nargs=4, type=float, metavar=("XMIN", "XMAX", "YMIN", "YMAX"),
+        help="gebied in RD, in de volgorde die QGIS toont",
+    )
+    gebiedsgroep.add_argument(
+        "--bbox", nargs=4, type=float, metavar=("XMIN", "YMIN", "XMAX", "YMAX"),
+        help="gebied in RD, in de volgorde van dit project",
+    )
+    gebiedsgroep.add_argument("--grens", type=Path, help="bestand met de gebiedsgrens als polygon")
+    parser.add_argument("--naam", default="centrum_vergelijking", help="naam van de map onder output/")
+    parser.add_argument("--zoom", type=int, help="15 is 10,5 cm/px, 16 is 5,25 cm/px en viermaal zoveel tegels")
+    parser.add_argument("--modellen", action="store_true", help="draai ook de modelvergelijking")
+    return parser
+
+
+def bepaal_grens(argumenten):
     """De gebiedsgrens waarover we een uitspraak doen, in RD (EPSG:28992)."""
-    if GRENS_BESTAND is None:
-        return GRENS_POLYGON
-    grens = gpd.read_file(GRENS_BESTAND)
-    if grens.empty:
-        raise ValueError(f"{GRENS_BESTAND} bevat geen geometrie")
-    if grens.crs is None:
-        raise ValueError(f"{GRENS_BESTAND} heeft geen CRS, omzetten naar RD is dan gokwerk")
-    return grens.to_crs(RD).union_all()
+    if argumenten.grens:
+        grens = gpd.read_file(argumenten.grens)
+        if grens.empty:
+            raise SystemExit(f"{argumenten.grens} bevat geen geometrie")
+        if grens.crs is None:
+            raise SystemExit(f"{argumenten.grens} heeft geen CRS, omzetten naar RD is dan gokwerk")
+        return grens.to_crs(RD).union_all()
+    if argumenten.bbox:
+        return box(*argumenten.bbox)
+    xmin, xmax, ymin, ymax = argumenten.extent or VOORBEELD_EXTENT
+    return box(xmin, ymin, xmax, ymax)
 
 
 def knip_op_grens(laag: gpd.GeoDataFrame, grens) -> gpd.GeoDataFrame:
@@ -73,43 +103,51 @@ def knip_op_grens(laag: gpd.GeoDataFrame, grens) -> gpd.GeoDataFrame:
     return geknipt.reset_index(drop=True)
 
 
-def toon_afwijkingen(signaleringen: gpd.GeoDataFrame, witte_vlekken: gpd.GeoDataFrame) -> None:
+def toon_afwijkingen(signaleringen: gpd.GeoDataFrame, witte_vlekken: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     afwijkend = signaleringen[signaleringen["status"] != BEVESTIGD]
-    bevestigd = len(signaleringen) - len(afwijkend)
-    print(f"\n{bevestigd} geregistreerde vlakken komen overeen met de foto.")
+    print(f"\n{len(signaleringen) - len(afwijkend)} geregistreerde vlakken komen overeen met de foto.")
 
     if afwijkend.empty:
         print("Geen afwijkingen gevonden.")
-    else:
-        print(f"\n{len(afwijkend)} vlakken wijken af, per status:")
-        for status, aantal in afwijkend["status"].value_counts().items():
-            oppervlak = afwijkend.loc[afwijkend["status"] == status, "afwijking_m2"].sum()
-            print(f"  {status:32} {aantal:4}  samen {oppervlak:9.0f} m2")
+        return afwijkend
 
-        gesorteerd = afwijkend.assign(_volgorde=afwijkend["prioriteit"].map(PRIORITEITSVOLGORDE)).sort_values(
-            ["_volgorde", "afwijking_m2"], ascending=[True, False]
-        )
-        print(f"\nGrootste afwijkingen (top {TOON_AANTAL}):")
-        print(gesorteerd.head(TOON_AANTAL)[AFWIJKING_KOLOMMEN].to_string(index=False))
+    print(f"\n{len(afwijkend)} vlakken wijken af, per status:")
+    for status, aantal in afwijkend["status"].value_counts().items():
+        oppervlak = afwijkend.loc[afwijkend["status"] == status, "afwijking_m2"].sum()
+        print(f"  {status:32} {aantal:4}  samen {oppervlak:9.0f} m2")
+
+    gesorteerd = afwijkend.assign(_volgorde=afwijkend["prioriteit"].map(PRIORITEITSVOLGORDE)).sort_values(
+        ["_volgorde", "afwijking_m2"], ascending=[True, False]
+    )
+    print(f"\nGrootste afwijkingen (top {TOON_AANTAL}):")
+    print(gesorteerd.head(TOON_AANTAL)[AFWIJKING_KOLOMMEN].to_string(index=False))
 
     if not witte_vlekken.empty:
         print(
             f"\n{len(witte_vlekken)} stukken maaiveld vallen in geen enkel geregistreerd vlak, "
             f"samen {witte_vlekken['oppervlakte_m2'].sum():.0f} m2."
         )
+    return gesorteerd.drop(columns="_volgorde")
 
 
-def main() -> None:
+def main(argumentenlijst: list[str] | None = None) -> None:
+    argumenten = bouw_parser().parse_args(argumentenlijst)
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)-7s %(name)s | %(message)s", datefmt="%H:%M:%S"
     )
 
-    grens = laad_grens()
-    gebied = gebied_uit_bbox(grens.bounds, naam=GEBIEDSNAAM)
+    instellingen = Instellingen.laden()
+    if argumenten.zoom:
+        instellingen.luchtfoto.zoom = argumenten.zoom
+
+    grens = bepaal_grens(argumenten)
+    gebied = gebied_uit_bbox(grens.bounds, naam=argumenten.naam)
+    uitvoer_map = Path("output") / argumenten.naam
+    uitvoer_map.mkdir(parents=True, exist_ok=True)
     print(f"Analysegebied: {gebied}, grensvlak {grens.area:.0f} m2")
 
     resultaat = voer_analyse_uit(
-        gebied, instellingen=Instellingen.laden(), uitvoer_map=UITVOER_MAP, schrijf_bestanden=False
+        gebied, instellingen=instellingen, uitvoer_map=uitvoer_map, schrijf_bestanden=False
     )
     lagen = {naam: knip_op_grens(laag, grens) for naam, laag in resultaat.lagen.items()}
 
@@ -119,11 +157,26 @@ def main() -> None:
         print()
         print(resultaat.per_thema.to_string(index=False))
 
-    toon_afwijkingen(lagen["signaleringen"], lagen["witte_vlekken"])
+    afwijkend = toon_afwijkingen(lagen["signaleringen"], lagen["witte_vlekken"])
 
-    UITVOER_MAP.mkdir(parents=True, exist_ok=True)
-    pad = schrijf_geopackage(lagen, UITVOER_MAP / f"{GEBIEDSNAAM}.gpkg")
+    pad = schrijf_geopackage(lagen, uitvoer_map / f"{argumenten.naam}.gpkg")
+    resultaat.per_thema.to_csv(uitvoer_map / "samenvatting_per_thema.csv", index=False)
+    if not afwijkend.empty:
+        afwijkend.drop(columns="geometry").to_csv(uitvoer_map / "afwijkingen.csv", index=False)
     print(f"\nAlle lagen (te openen in QGIS): {pad}")
+
+    if argumenten.modellen:
+        from luchtfoto_objecten.modelvergelijking import vergelijk_modellen
+
+        vergelijking, belang = vergelijk_modellen(gebied, instellingen)
+        print("\nModelvergelijking, referentie is de BGT, west getraind en oost gescoord:")
+        print(vergelijking.to_string(index=False))
+        print("\nGewicht van de kenmerken in de boommodellen:")
+        print(belang.to_string(index=False))
+        vergelijking.to_csv(uitvoer_map / "modelvergelijking.csv", index=False)
+        belang.to_csv(uitvoer_map / "kenmerkbelang.csv", index=False)
+
+    print(f"\nUitvoer staat in {uitvoer_map}/")
 
 
 if __name__ == "__main__":
