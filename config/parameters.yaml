@@ -1,0 +1,37 @@
+# Alle instelbare drempels op één plek. Waarden die hier ontbreken vallen terug
+# op de standaard in luchtfoto_objecten/instellingen.py.
+
+luchtfoto:
+  laag: Actueel_orthoHR      # Luchtfoto Actueel Ortho 8cm RGB, meest recente jaargang van de LV Beeldmateriaal
+  zoom: 15                   # 15 = 10,5 cm/px, 16 = 5,25 cm/px en viermaal zoveel tegels
+  max_werkers: 4
+  groenlaag: auto            # auto zoekt de nieuwste jaargang met blad, of vul zelf een laagnaam in, of 'gelijk'
+  groen_minimaal_aandeel: 0.10
+
+groen:
+  exg_ondergrens: 0.035      # minimale excess green, houdt Otsu weg bij beelden zonder groen
+  min_oppervlakte_m2: 3.0
+  vereenvoudiging_m: 0.20
+  textuur_venster_m: 1.0
+
+# Geijkt op de geregistreerde verhardingsvlakken in Centrum: verzadiging mediaan 0,08 met
+# p90 rond 0,40 door de rode klinkers, textuur mediaan 0,03 met p90 rond 0,10.
+verharding:
+  max_verzadiging: 0.35
+  min_helderheid: 0.18
+  max_helderheid: 0.95
+  max_textuur: 0.10
+  min_oppervlakte_m2: 8.0
+  vereenvoudiging_m: 0.25
+  gebouwbuffer_m: 0.5
+
+signalering:
+  min_dekkingsgraad: 0.55    # onder deze dekking wijkt de registratie af van de foto
+  lage_dekkingsgraad: 0.20   # onder deze dekking is het object niet terug te zien
+  min_nieuw_oppervlakte_m2: 15.0
+  min_registratie_m2: 2.0    # snippers onder deze maat beoordelen we niet, die zeggen weinig
+  min_witte_vlek_m2: 25.0    # kleiner dan dit melden we niet als gat in de vlakdekkendheid
+  sliverbreedte_m: 0.75      # randstroken smaller dan dit zijn digitaliseerverschil, geen echt gat
+  celgrootte_m: 100.0
+  cel_signaaldrempel: 5      # aantal signalen per cel voordat achterstand wordt gemeld
+  beperk_tot_beheergebied: true   # snijd alles op de beheerkaart, anders tellen privétuinen mee

@@ -35,7 +35,7 @@ MANIFEST
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
-
+.claude
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Luchtfoto-analyse: tegelcache, tussenresultaten en geo-uitvoer
+data/
+*.gpkg
+*.tif
+*.tiff
+.DS_Store

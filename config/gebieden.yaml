@@ -1,0 +1,42 @@
+# Analysegebieden in Rijksdriehoek (EPSG:28992), volgorde xmin, ymin, xmax, ymax.
+# Begin klein: een gebied van 400 bij 350 meter is op zoom 15 ongeveer 250 tegels.
+
+centrum_plantage:
+  omschrijving: Plantage en Wertheimpark, gemengd beeld met laanbomen, gracht en parkeervakken
+  stadsdeel: Centrum
+  bbox: [122100, 486450, 122500, 486800]
+
+centrum_nieuwmarkt:
+  omschrijving: Nieuwmarkt en omgeving, dichte bebouwing met weinig groen
+  stadsdeel: Centrum
+  bbox: [121650, 487100, 122050, 487450]
+
+centrum_frederiksplein:
+  omschrijving: Frederiksplein en Weteringschans, plantsoen tussen drukke straten
+  stadsdeel: Centrum
+  bbox: [121500, 485800, 121900, 486150]
+
+centrum_oostelijke_eilanden:
+  omschrijving: Kattenburg en Wittenburg, brede profielen met veel verharding
+  stadsdeel: Centrum
+  bbox: [122400, 487200, 122900, 487650]
+
+centrum_volledig:
+  omschrijving: Heel stadsdeel Centrum, ongeveer 6 vierkante kilometer en dus een lange download
+  stadsdeel: Centrum
+  bbox: [120400, 485700, 122900, 488100]
+
+noord_ndsm:
+  omschrijving: NDSM-werf, grote verharde vlakken en nieuwbouw in ontwikkeling
+  stadsdeel: Noord
+  bbox: [121150, 490250, 121600, 490650]
+
+noord_vliegenbos:
+  omschrijving: Vliegenbos, aaneengesloten boomkronen naast woonbebouwing
+  stadsdeel: Noord
+  bbox: [123400, 489300, 123900, 489700]
+
+noord_noorderpark:
+  omschrijving: Noorderpark, gras en water met paden erdoorheen
+  stadsdeel: Noord
+  bbox: [122750, 489050, 123250, 489450]

@@ -1,0 +1,6 @@
+# Optionele uitbreiding: contourverfijning met Segment Anything (SAM).
+# Alleen nodig als je de vlag --sam gebruikt. Installeer daarna het checkpoint,
+# bijvoorbeeld sam_vit_b_01ec64.pth, en wijs ernaar met --sam-checkpoint.
+torch>=2.2
+torchvision>=0.17
+segment-anything>=1.0
