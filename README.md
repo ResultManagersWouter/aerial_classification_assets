@@ -42,32 +42,87 @@ ligt op 0,03 voor allebei.
 
 Daarom kiest de software zelf een tweede opname voor het groen. Hij bemonstert een klein
 vlak uit het midden van het gebied op de beschikbare jaargangen, van nieuw naar oud, en
-neemt de eerste die genoeg blad laat zien. Voor Centrum levert dat dit beeld op:
+neemt de eerste die genoeg blad laat zien. Dat levert bijvoorbeeld dit beeld op:
 
 | laag | groene pixels |
 |---|---|
 | Actueel_orthoHR | 0,3% |
 | 2026_orthoHR | 4,8% |
 | 2026_quickorthoHR | 5,2% |
+| 2026_quickortho25 | 0,0% |
 | 2025_orthoHR | 0,3% |
 | 2025_ortho25 | 79,2% |
+
+Gemeten op `centrum_plantage`. Welke jaargangen er zijn verandert als PDOK er een
+toevoegt, dus draai het zelf na voor je gebied; de meting staat in het logboek van elke
+analyse en in `bladstand_gemeten` in de samenvatting.
 
 De verharding blijft dus van de nieuwste 8cm-foto komen, het groen van de nieuwste opname
 met blad. Dat verschil in opnamemoment is zelf ook een bron van afwijkingen, houd dat in
 gedachten bij het lezen van de signalen. Wil je het uitzetten, zet dan `groenlaag` in
 `config/parameters.yaml` op `gelijk`, of vul een vaste laagnaam in.
 
-## Installeren
+## Beginnen als je hier nieuw bent
+
+Je hebt Python en een internetverbinding nodig, verder niets. Ontwikkeld op 3.12, en 3.10
+is de ondergrond die de gebruikte typeannotaties aankunnen. Er zijn geen sleutels, accounts
+of databases nodig: zowel de luchtfoto van PDOK als de registraties van Amsterdam zijn open
+en worden tijdens de run opgehaald.
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+git clone https://github.com/ResultManagersWouter/aerial_classification_assets.git
+cd aerial_classification_assets
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -r requirements-ml.txt      # alleen voor --modellen
 ```
 
-In PyCharm wijs je `.venv` aan als interpreter, daarna draaien de scripts in `scripts/`
-direct. De optionele SAM-module staat in `requirements-sam.txt` en is alleen nodig als je
-contouren wilt laten aanscherpen door Segment Anything.
+Werk je in PyCharm, wijs dan `.venv` aan als interpreter (Settings, Project, Python
+Interpreter, Add Local Interpreter, Existing). Daarna draait `main.py` met de groene
+knop.
+
+Controleer of de verbindingen werken, dit haalt niets zwaars op:
+
+```bash
+.venv/bin/python -m luchtfoto_objecten gebieden   # de gebieden uit config/gebieden.yaml
+.venv/bin/python -m luchtfoto_objecten lagen      # de luchtfotolagen en registraties
+```
+
+Doe dan een eerste analyse. Begin klein, en houd er rekening mee dat de eerste run van een
+gebied alle tegels moet downloaden; een tweede run over hetzelfde gebied komt uit de cache
+in `data/cache/` en is veel sneller.
+
+```bash
+.venv/bin/python main.py
+```
+
+Dat draait het voorbeeldgebied in Centrum, ongeveer 37 hectare, en dat kost een paar
+minuten. Kijk daarna in `output/centrum_vergelijking/`: de GeoPackage open je in QGIS, en
+`afwijkingen.csv` is de lijst waar het om gaat. Wil je begrijpen wat je ziet, lees dan
+hieronder "Wat eruit komt", en vooral "Beperkingen", want een deel van de signalen is
+ruis met een bekende oorzaak.
 
 ## Gebruiken
+
+`main.py` is de ingang. Je geeft een gebied mee in Rijksdriehoek (EPSG:28992), en de
+uitvoer komt in `output/<naam>/`.
+
+```bash
+python main.py                                    # het voorbeeldgebied in Centrum
+python main.py --extent 121641.1653 122215.9413 486408.2909 487051.9774 --naam centrum
+python main.py --bbox 121641 486408 122215 487051 --naam centrum
+python main.py --grens data/aoi/buurt.geojson --naam buurt
+python main.py --naam centrum --modellen          # ook de modelvergelijking
+```
+
+Let op de volgorde van de coördinaten. QGIS toont een extent als xmin, xmax, ymin, ymax en
+die neem je over achter `--extent`. De rest van dit project gebruikt xmin, ymin, xmax, ymax,
+en dat is wat `--bbox` verwacht. Met `--grens` geef je een bestand mee met de echte
+gebiedsgrens (GeoJSON, Shapefile, GeoPackage); dat mag elke polygon zijn, niet alleen een
+rechthoek, en de uitvoer wordt dan op die grens geknipt in plaats van op de rechthoek
+eromheen.
+
+Daarnaast is er de CLI van het pakket zelf, handig om alleen een deel te draaien:
 
 ```bash
 python -m luchtfoto_objecten gebieden
@@ -77,13 +132,19 @@ python -m luchtfoto_objecten registratie --gebied noord_ndsm
 ```
 
 De gebieden staan in `config/gebieden.yaml`, in RD-coördinaten. Begin klein. Een vlak van
-400 bij 350 meter is op zoom 15 ongeveer 250 tegels en draait in een halve minuut. Heel
+400 bij 350 meter is op zoom 15 ruim tweehonderd tegels en draait in een halve minuut. Heel
 stadsdeel Centrum staat er ook in, maar dat zijn ruim achtduizend tegels.
+
+De optionele SAM-module staat in `requirements-sam.txt` en is alleen nodig als je contouren
+wilt laten aanscherpen door Segment Anything.
 
 ## Wat eruit komt
 
-Per gebied verschijnt in `data/uitvoer/<gebied>/` een GeoPackage met alle lagen, dezelfde
-lagen los als GeoJSON, de luchtfoto als GeoTIFF in RD, en een samenvatting in JSON en CSV.
+`main.py` schrijft naar `output/<naam>/`: een GeoPackage met alle lagen, `afwijkingen.csv`
+met de vlakken die niet kloppen, en `samenvatting_per_thema.csv`. Met `--modellen` komen
+`modelvergelijking.csv` en `kenmerkbelang.csv` erbij. De CLI van het pakket schrijft naar
+`data/uitvoer/<gebied>/`, en levert daar ook de losse GeoJSON-lagen, de luchtfoto als
+GeoTIFF in RD en een samenvatting in JSON. Beide mappen staan in `.gitignore`.
 
 De laag `signaleringen` is waar het om draait. Elk vlak heeft een status:
 
@@ -121,6 +182,53 @@ geregistreerde verhardingsvlakken in Centrum: verzadiging heeft daar een mediaan
 met een p90 rond 0,40 door de rode klinkers, en textuur een mediaan van 0,03 met een p90
 rond 0,10. Wie de drempels wil bijstellen voor een ander stadsdeel doet er goed aan die
 meting daar opnieuw te doen, want Noord ziet er anders uit dan de binnenstad.
+
+## Modellen vergelijken
+
+`python main.py --modellen` zet de huidige drempels naast een aantal lerende modellen.
+Twee losse binaire vragen, elk op de opname die erbij hoort, met de BGT als referentie en
+het westelijke deel van het gebied als trainingsgebied en het oostelijke deel als toets.
+De code staat in `luchtfoto_objecten/modelvergelijking.py`.
+
+Bedenk goed wat er gemeten wordt. De registratie is juist het bestand dat we willen
+controleren, dus dit meet overeenstemming, geen waarheid. Een model dat hoger scoort leest
+het beeld beter op de plekken waar de registratie klopt, en dan is de rest van het verschil
+een echt signaal in plaats van modelruis.
+
+Kijk niet naar IoU. Binnen de beheerkaart is het maaiveld in de binnenstad voor ruim
+negentig procent verharding, en een model dat overal "verharding" roept haalt daar een IoU
+van 0,93 zonder iets te doen. Daarom staat `altijd_positief` als bodem in de tabel, wordt
+er gebalanceerd getraind en sorteren we op MCC.
+
+Op het gebied `--extent 121641.1653 122215.9413 486408.2909 487051.9774` kwam dit eruit:
+
+| klasse | model | MCC | gebalanceerd | recall | precisie |
+|---|---|---|---|---|---|
+| verharding | gradient_boost | 0,105 | 0,598 | 0,603 | 0,948 |
+| verharding | randomforest | 0,102 | 0,593 | 0,641 | 0,946 |
+| verharding | logistisch | 0,090 | 0,585 | 0,528 | 0,948 |
+| verharding | altijd_positief | 0,000 | 0,500 | 1,000 | 0,925 |
+| verharding | regels (huidig) | -0,032 | 0,473 | 0,726 | 0,920 |
+| groen | regels (huidig) | 0,118 | 0,736 | 0,805 | 0,034 |
+| groen | gradient_boost | 0,016 | 0,506 | 0,018 | 0,037 |
+| groen | randomforest | 0,013 | 0,504 | 0,012 | 0,035 |
+
+Twee dingen om te weten voor je hier verder aan werkt. De verhardingsdrempels scoren op
+dit gebied slechter dan kansniveau: ze noemen 73 procent van de pixels verharding en
+verwerpen maar 22 procent van wat het niet is. En het wisselen van model levert weinig op,
+alles blijft rond een MCC van 0,1 hangen. De bottleneck zit niet in het model maar in de
+referentie: de BGT registreert hier 1,4 procent van het maaiveld als begroeid terwijl de
+zomerfoto ruim dertig procent groene pixels laat zien, want boomkronen hangen over
+geregistreerde verharding. Wat een kroon boven een rijbaan hoort te zijn is dus eerst een
+definitiekwestie en pas daarna een modelkeuze.
+
+Het kenmerkbelang wijst dezelfde kant op: textuur op 1 en 3 meter zijn voor beide klassen
+de zwaarste kenmerken, kleur weegt nauwelijks mee. De informatie zit in de omgeving van een
+pixel, en dat is precies wat een model dat pixel voor pixel kijkt slecht ziet. Een
+segmentatiemodel met ruimtelijke context, SAM of een kleine U-Net op tegels, is een
+kansrijkere volgende stap dan nog een classificatie per pixel. Draai de vergelijking ook op
+een gebied met meer variatie, zoals `noord_noorderpark` of `centrum_plantage`; in een blok
+dat voor 93 procent verhard is valt er weinig te meten.
 
 ## Beperkingen
 
