@@ -219,6 +219,7 @@ __marimo__/
 
 # Luchtfoto-analyse: tegelcache, tussenresultaten en geo-uitvoer
 data/
+output/
 *.gpkg
 *.tif
 *.tiff

@@ -26,7 +26,7 @@ import logging
 from pathlib import Path
 
 import geopandas as gpd
-from shapely.geometry import Polygon
+from shapely.geometry import box
 
 from luchtfoto_objecten.gebieden import gebied_uit_bbox
 from luchtfoto_objecten.geo_hulp import RD
@@ -36,20 +36,13 @@ from luchtfoto_objecten.uitvoer import schrijf_geopackage
 from luchtfoto_objecten.vergelijking.signalering import BEVESTIGD
 
 # Het analysegebied. Vul GRENS_BESTAND met een GeoJSON, Shapefile of GeoPackage met de
-# echte gebiedsgrens, of laat het leeg en pas GRENS_POLYGON aan (RD, EPSG:28992).
+# echte gebiedsgrens, of laat het leeg en pas GRENS_POLYGON aan (RD, EPSG:28992). Elke
+# polygon mag hier staan, de rechthoek hieronder is alleen het voorbeeld.
 GRENS_BESTAND: Path | None = None
-GRENS_POLYGON = Polygon(
-    [
-        (121650, 487150),
-        (121950, 487100),
-        (122050, 487250),
-        (121950, 487450),
-        (121700, 487400),
-        (121600, 487280),
-    ]
-)
-GEBIEDSNAAM = "voorbeeld_nieuwmarkt"
-UITVOER_MAP = Path("data/uitvoer") / GEBIEDSNAAM
+# QGIS toont een extent als xmin, xmax, ymin, ymax; box() verwacht xmin, ymin, xmax, ymax.
+GRENS_POLYGON = box(121641.1653, 486408.2909, 122215.9413, 487051.9774)
+GEBIEDSNAAM = "centrum_vergelijking"
+UITVOER_MAP = Path("output") / GEBIEDSNAAM
 
 # Hoeveel afwijkingen we op het scherm tonen; alles staat altijd in de GeoPackage.
 TOON_AANTAL = 25

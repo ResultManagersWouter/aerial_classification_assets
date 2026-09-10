@@ -1,0 +1,3 @@
+# Optionele uitbreiding: lerende modellen in vergelijk_modellen.py.
+# Alleen nodig om de modelvergelijking te draaien, de pijplijn zelf werkt zonder.
+scikit-learn>=1.4
