@@ -74,8 +74,20 @@ git clone https://github.com/ResultManagersWouter/aerial_classification_assets.g
 cd aerial_classification_assets
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/pip install -r requirements-ml.txt      # alleen voor --modellen
 ```
+
+Daarmee draait `python main.py` volledig; er is verder niets nodig. Twee losse bestanden
+zijn optioneel en hoef je alleen te installeren als je die stap gebruikt:
+
+| bestand | waarvoor | wanneer |
+|---|---|---|
+| `requirements.txt` | de hele pijplijn | altijd |
+| `requirements-ml.txt` | scikit-learn | voor `--modellen` en `--bomen` |
+| `requirements-sam.txt` | torch en Segment Anything, ruim 2 GB | alleen voor contourverfijning met SAM |
+
+Twee dingen die verwarren: de module `yaml` komt uit het pakket `pyyaml`, dat staat er dus
+gewoon in, en `pyogrio`, dat de GeoPackages wegschrijft, komt automatisch mee met
+`geopandas`. Je hoeft die twee niet apart te installeren.
 
 Werk je in PyCharm, wijs dan `.venv` aan als interpreter (Settings, Project, Python
 Interpreter, Add Local Interpreter, Existing). Daarna draait `main.py` met de groene
@@ -133,9 +145,17 @@ python -m luchtfoto_objecten analyse --bbox 122100 486450 122500 486800 --zoom 1
 python -m luchtfoto_objecten registratie --gebied noord_ndsm
 ```
 
-De gebieden staan in `config/gebieden.yaml`, in RD-coördinaten. Begin klein. Een vlak van
-400 bij 350 meter is op zoom 15 ruim tweehonderd tegels en draait in een halve minuut. Heel
-stadsdeel Centrum staat er ook in, maar dat zijn ruim achtduizend tegels.
+In `config/gebieden.yaml` staan 49 gebieden klaar, verspreid over alle stadsdelen: pleinen
+in het centrum, stadsparken, sportvelden, een begraafplaats, nieuwbouweilanden, bedrijven-
+terrein en landelijk gebied. Dat is met opzet gevarieerd, want een detectiedrempel die op
+de Dam werkt hoeft in het Vliegenbos nog niets te doen. `python -m luchtfoto_objecten
+gebieden` toont de lijst, en dezelfde vlakken staan als polygon in `config/gebieden.geojson`
+om in QGIS te bekijken of mee te geven met `--grens`.
+
+De middelpunten komen uit de locatieserver van PDOK, dus ze liggen waar ze horen. Begin
+klein: de meeste gebieden zijn 300 tot 500 meter en draaien in een halve minuut. Heel
+stadsdeel Centrum staat er ook in als `centrum_volledig`, maar dat zijn ruim achtduizend
+tegels.
 
 De optionele SAM-module staat in `requirements-sam.txt` en is alleen nodig als je contouren
 wilt laten aanscherpen door Segment Anything.

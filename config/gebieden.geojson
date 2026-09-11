@@ -1,0 +1,1874 @@
+{
+ "type": "FeatureCollection",
+ "name": "analysegebieden_amsterdam",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:EPSG::28992"
+  }
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_dam",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Dam en Nationaal Monument, vrijwel volledig verhard plein",
+    "breedte_m": 300,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 9.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121198,
+       487198
+      ],
+      [
+       121498,
+       487198
+      ],
+      [
+       121498,
+       487498
+      ],
+      [
+       121198,
+       487498
+      ],
+      [
+       121198,
+       487198
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_spui",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Spui en Begijnhof, smalle straten met enkele binnentuinen",
+    "breedte_m": 300,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 9.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121000,
+       486715
+      ],
+      [
+       121300,
+       486715
+      ],
+      [
+       121300,
+       487015
+      ],
+      [
+       121000,
+       487015
+      ],
+      [
+       121000,
+       486715
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_leidseplein",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Leidseplein, druk plein met terrassen en tramsporen",
+    "breedte_m": 300,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 9.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       120420,
+       486157
+      ],
+      [
+       120720,
+       486157
+      ],
+      [
+       120720,
+       486457
+      ],
+      [
+       120420,
+       486457
+      ],
+      [
+       120420,
+       486157
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_rembrandtplein",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Rembrandtplein, plein met plantsoen tussen de horeca",
+    "breedte_m": 300,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 9.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121442,
+       486400
+      ],
+      [
+       121742,
+       486400
+      ],
+      [
+       121742,
+       486700
+      ],
+      [
+       121442,
+       486700
+      ],
+      [
+       121442,
+       486400
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_waterlooplein",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Waterlooplein en Stopera, markt en kade",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121810,
+       486559
+      ],
+      [
+       122160,
+       486559
+      ],
+      [
+       122160,
+       486909
+      ],
+      [
+       121810,
+       486909
+      ],
+      [
+       121810,
+       486559
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_artis",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Artis en Plantage, veel boomkronen boven verharding",
+    "breedte_m": 400,
+    "hoogte_m": 400,
+    "oppervlakte_ha": 16.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       122474,
+       486470
+      ],
+      [
+       122874,
+       486470
+      ],
+      [
+       122874,
+       486870
+      ],
+      [
+       122474,
+       486870
+      ],
+      [
+       122474,
+       486470
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_plantage",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Plantage en Wertheimpark, laanbomen, gracht en parkeervakken",
+    "breedte_m": 400,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 14.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       122100,
+       486450
+      ],
+      [
+       122500,
+       486450
+      ],
+      [
+       122500,
+       486800
+      ],
+      [
+       122100,
+       486800
+      ],
+      [
+       122100,
+       486450
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_nieuwmarkt",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Nieuwmarkt en omgeving, dichte bebouwing met weinig groen",
+    "breedte_m": 400,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 14.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121650,
+       487100
+      ],
+      [
+       122050,
+       487100
+      ],
+      [
+       122050,
+       487450
+      ],
+      [
+       121650,
+       487450
+      ],
+      [
+       121650,
+       487100
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_frederiksplein",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Frederiksplein en Weteringschans, plantsoen tussen drukke straten",
+    "breedte_m": 400,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 14.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121500,
+       485800
+      ],
+      [
+       121900,
+       485800
+      ],
+      [
+       121900,
+       486150
+      ],
+      [
+       121500,
+       486150
+      ],
+      [
+       121500,
+       485800
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_oostelijke_eilanden",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Kattenburg en Wittenburg, brede profielen met veel verharding",
+    "breedte_m": 500,
+    "hoogte_m": 450,
+    "oppervlakte_ha": 22.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       122400,
+       487200
+      ],
+      [
+       122900,
+       487200
+      ],
+      [
+       122900,
+       487650
+      ],
+      [
+       122400,
+       487650
+      ],
+      [
+       122400,
+       487200
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuid_vondelpark",
+    "stadsdeel": "Zuid",
+    "omschrijving": "Vondelpark, gras en boomgroepen met vijvers",
+    "breedte_m": 400,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 12.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       119610,
+       485698
+      ],
+      [
+       120010,
+       485698
+      ],
+      [
+       120010,
+       485998
+      ],
+      [
+       119610,
+       485998
+      ],
+      [
+       119610,
+       485698
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuid_museumplein",
+    "stadsdeel": "Zuid",
+    "omschrijving": "Museumplein, groot grasveld tussen de musea",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       120438,
+       485376
+      ],
+      [
+       120788,
+       485376
+      ],
+      [
+       120788,
+       485726
+      ],
+      [
+       120438,
+       485726
+      ],
+      [
+       120438,
+       485376
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuid_sarphatipark",
+    "stadsdeel": "Zuid",
+    "omschrijving": "Sarphatipark, klein stadspark midden in De Pijp",
+    "breedte_m": 250,
+    "hoogte_m": 250,
+    "oppervlakte_ha": 6.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121461,
+       485088
+      ],
+      [
+       121711,
+       485088
+      ],
+      [
+       121711,
+       485338
+      ],
+      [
+       121461,
+       485338
+      ],
+      [
+       121461,
+       485088
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuid_beatrixpark",
+    "stadsdeel": "Zuid",
+    "omschrijving": "Beatrixpark, park tegen de Zuidas aan",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       120204,
+       483960
+      ],
+      [
+       120554,
+       483960
+      ],
+      [
+       120554,
+       484310
+      ],
+      [
+       120204,
+       484310
+      ],
+      [
+       120204,
+       483960
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuid_amstelpark",
+    "stadsdeel": "Zuid",
+    "omschrijving": "Amstelpark, gevarieerd park met heesters en paden",
+    "breedte_m": 400,
+    "hoogte_m": 400,
+    "oppervlakte_ha": 16.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121154,
+       482376
+      ],
+      [
+       121554,
+       482376
+      ],
+      [
+       121554,
+       482776
+      ],
+      [
+       121154,
+       482776
+      ],
+      [
+       121154,
+       482376
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuid_zuidas",
+    "stadsdeel": "Zuid",
+    "omschrijving": "Zuidas, hoogbouw en brede infrastructuur, weinig maaiveld",
+    "breedte_m": 400,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 12.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       119439,
+       483165
+      ],
+      [
+       119839,
+       483165
+      ],
+      [
+       119839,
+       483465
+      ],
+      [
+       119439,
+       483465
+      ],
+      [
+       119439,
+       483165
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuid_olympisch_stadion",
+    "stadsdeel": "Zuid",
+    "omschrijving": "Olympisch Stadion, sportvelden en parkeerterreinen",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       118575,
+       483969
+      ],
+      [
+       118925,
+       483969
+      ],
+      [
+       118925,
+       484319
+      ],
+      [
+       118575,
+       484319
+      ],
+      [
+       118575,
+       483969
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "oost_oosterpark",
+    "stadsdeel": "Oost",
+    "omschrijving": "Oosterpark, gras met oude boomgroepen",
+    "breedte_m": 350,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 10.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       122996,
+       485608
+      ],
+      [
+       123346,
+       485608
+      ],
+      [
+       123346,
+       485908
+      ],
+      [
+       122996,
+       485908
+      ],
+      [
+       122996,
+       485608
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "oost_frankendael",
+    "stadsdeel": "Oost",
+    "omschrijving": "Park Frankendael, landgoed met gazons en opgaand groen",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       123914,
+       484727
+      ],
+      [
+       124264,
+       484727
+      ],
+      [
+       124264,
+       485077
+      ],
+      [
+       123914,
+       485077
+      ],
+      [
+       123914,
+       484727
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "oost_nieuwe_ooster",
+    "stadsdeel": "Oost",
+    "omschrijving": "Begraafplaats De Nieuwe Ooster, groen met veel kleine objecten",
+    "breedte_m": 400,
+    "hoogte_m": 400,
+    "oppervlakte_ha": 16.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       124247,
+       484083
+      ],
+      [
+       124647,
+       484083
+      ],
+      [
+       124647,
+       484483
+      ],
+      [
+       124247,
+       484483
+      ],
+      [
+       124247,
+       484083
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "oost_flevopark",
+    "stadsdeel": "Oost",
+    "omschrijving": "Flevopark, bos en water aan de rand van de stad",
+    "breedte_m": 400,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 14.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       125071,
+       485931
+      ],
+      [
+       125471,
+       485931
+      ],
+      [
+       125471,
+       486281
+      ],
+      [
+       125071,
+       486281
+      ],
+      [
+       125071,
+       485931
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "oost_java_eiland",
+    "stadsdeel": "Oost",
+    "omschrijving": "Java-eiland, dichte nieuwbouw op een smal eiland",
+    "breedte_m": 300,
+    "hoogte_m": 250,
+    "oppervlakte_ha": 7.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       123629,
+       487770
+      ],
+      [
+       123929,
+       487770
+      ],
+      [
+       123929,
+       488020
+      ],
+      [
+       123629,
+       488020
+      ],
+      [
+       123629,
+       487770
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "oost_borneo",
+    "stadsdeel": "Oost",
+    "omschrijving": "Borneo-eiland, laagbouw met kades",
+    "breedte_m": 300,
+    "hoogte_m": 250,
+    "oppervlakte_ha": 7.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       124566,
+       486951
+      ],
+      [
+       124866,
+       486951
+      ],
+      [
+       124866,
+       487201
+      ],
+      [
+       124566,
+       487201
+      ],
+      [
+       124566,
+       486951
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "oost_amstelkwartier",
+    "stadsdeel": "Oost",
+    "omschrijving": "Amstelkwartier en Ringdijk, nieuwbouw op voormalig industrieterrein",
+    "breedte_m": 350,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 10.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       123543,
+       485159
+      ],
+      [
+       123893,
+       485159
+      ],
+      [
+       123893,
+       485459
+      ],
+      [
+       123543,
+       485459
+      ],
+      [
+       123543,
+       485159
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "oost_ijburg",
+    "stadsdeel": "Oost",
+    "omschrijving": "IJburg, planmatige nieuwbouw met jonge beplanting",
+    "breedte_m": 400,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 14.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       127650,
+       485515
+      ],
+      [
+       128050,
+       485515
+      ],
+      [
+       128050,
+       485865
+      ],
+      [
+       127650,
+       485865
+      ],
+      [
+       127650,
+       485515
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "oost_diemerpark",
+    "stadsdeel": "Oost",
+    "omschrijving": "Diemerpark, ruig groen op een voormalige stortplaats",
+    "breedte_m": 400,
+    "hoogte_m": 400,
+    "oppervlakte_ha": 16.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       128095,
+       485130
+      ],
+      [
+       128495,
+       485130
+      ],
+      [
+       128495,
+       485530
+      ],
+      [
+       128095,
+       485530
+      ],
+      [
+       128095,
+       485130
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "west_westerpark",
+    "stadsdeel": "West",
+    "omschrijving": "Westerpark, gras en water naast de spoorzone",
+    "breedte_m": 350,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 10.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       120260,
+       488723
+      ],
+      [
+       120610,
+       488723
+      ],
+      [
+       120610,
+       489023
+      ],
+      [
+       120260,
+       489023
+      ],
+      [
+       120260,
+       488723
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "west_westergasfabriek",
+    "stadsdeel": "West",
+    "omschrijving": "Westergasfabriek, evenemententerrein met verharding en gras",
+    "breedte_m": 300,
+    "hoogte_m": 250,
+    "oppervlakte_ha": 7.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       119848,
+       488708
+      ],
+      [
+       120148,
+       488708
+      ],
+      [
+       120148,
+       488958
+      ],
+      [
+       119848,
+       488958
+      ],
+      [
+       119848,
+       488708
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "west_erasmuspark",
+    "stadsdeel": "West",
+    "omschrijving": "Erasmuspark, buurtpark met gazons",
+    "breedte_m": 300,
+    "hoogte_m": 250,
+    "oppervlakte_ha": 7.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       118286,
+       487368
+      ],
+      [
+       118586,
+       487368
+      ],
+      [
+       118586,
+       487618
+      ],
+      [
+       118286,
+       487618
+      ],
+      [
+       118286,
+       487368
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "west_rembrandtpark",
+    "stadsdeel": "West",
+    "omschrijving": "Rembrandtpark, park langs de ringweg",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       118070,
+       486111
+      ],
+      [
+       118420,
+       486111
+      ],
+      [
+       118420,
+       486461
+      ],
+      [
+       118070,
+       486461
+      ],
+      [
+       118070,
+       486111
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "west_houthavens",
+    "stadsdeel": "West",
+    "omschrijving": "Houthavens, nieuwbouw op het water",
+    "breedte_m": 300,
+    "hoogte_m": 250,
+    "oppervlakte_ha": 7.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       120214,
+       489658
+      ],
+      [
+       120514,
+       489658
+      ],
+      [
+       120514,
+       489908
+      ],
+      [
+       120214,
+       489908
+      ],
+      [
+       120214,
+       489658
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "west_sloterdijk",
+    "stadsdeel": "West",
+    "omschrijving": "Station Sloterdijk, kantoren en sporen, vrijwel geen groen",
+    "breedte_m": 350,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 10.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       117354,
+       489165
+      ],
+      [
+       117704,
+       489165
+      ],
+      [
+       117704,
+       489465
+      ],
+      [
+       117354,
+       489465
+      ],
+      [
+       117354,
+       489165
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "nieuw_west_sloterplas",
+    "stadsdeel": "Nieuw-West",
+    "omschrijving": "Sloterplas, open water met parkrand",
+    "breedte_m": 400,
+    "hoogte_m": 400,
+    "oppervlakte_ha": 16.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       115653,
+       486680
+      ],
+      [
+       116053,
+       486680
+      ],
+      [
+       116053,
+       487080
+      ],
+      [
+       115653,
+       487080
+      ],
+      [
+       115653,
+       486680
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "nieuw_west_osdorpplein",
+    "stadsdeel": "Nieuw-West",
+    "omschrijving": "Osdorpplein, winkelcentrum met plein",
+    "breedte_m": 300,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 9.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       115301,
+       485724
+      ],
+      [
+       115601,
+       485724
+      ],
+      [
+       115601,
+       486024
+      ],
+      [
+       115301,
+       486024
+      ],
+      [
+       115301,
+       485724
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "nieuw_west_geuzenveld",
+    "stadsdeel": "Nieuw-West",
+    "omschrijving": "Geuzenveld, naoorlogse stroken met veel openbaar groen",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       114965,
+       487795
+      ],
+      [
+       115315,
+       487795
+      ],
+      [
+       115315,
+       488145
+      ],
+      [
+       114965,
+       488145
+      ],
+      [
+       114965,
+       487795
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "nieuw_west_riekerhaven",
+    "stadsdeel": "Nieuw-West",
+    "omschrijving": "Riekerhaven, sportvelden en bedrijventerrein",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       117462,
+       483746
+      ],
+      [
+       117812,
+       483746
+      ],
+      [
+       117812,
+       484096
+      ],
+      [
+       117462,
+       484096
+      ],
+      [
+       117462,
+       483746
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "nieuw_west_sportpark_sloten",
+    "stadsdeel": "Nieuw-West",
+    "omschrijving": "Sportpark Sloten, aaneengesloten sportvelden",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       115249,
+       483505
+      ],
+      [
+       115599,
+       483505
+      ],
+      [
+       115599,
+       483855
+      ],
+      [
+       115249,
+       483855
+      ],
+      [
+       115249,
+       483505
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "noord_ndsm",
+    "stadsdeel": "Noord",
+    "omschrijving": "NDSM-werf, grote verharde vlakken en nieuwbouw in ontwikkeling",
+    "breedte_m": 450,
+    "hoogte_m": 400,
+    "oppervlakte_ha": 18.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121150,
+       490250
+      ],
+      [
+       121600,
+       490250
+      ],
+      [
+       121600,
+       490650
+      ],
+      [
+       121150,
+       490650
+      ],
+      [
+       121150,
+       490250
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "noord_vliegenbos",
+    "stadsdeel": "Noord",
+    "omschrijving": "Vliegenbos, aaneengesloten boomkronen naast woonbebouwing",
+    "breedte_m": 500,
+    "hoogte_m": 400,
+    "oppervlakte_ha": 20.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       123400,
+       489300
+      ],
+      [
+       123900,
+       489300
+      ],
+      [
+       123900,
+       489700
+      ],
+      [
+       123400,
+       489700
+      ],
+      [
+       123400,
+       489300
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "noord_noorderpark",
+    "stadsdeel": "Noord",
+    "omschrijving": "Noorderpark, gras en water met paden erdoorheen",
+    "breedte_m": 500,
+    "hoogte_m": 400,
+    "oppervlakte_ha": 20.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       122750,
+       489050
+      ],
+      [
+       123250,
+       489050
+      ],
+      [
+       123250,
+       489450
+      ],
+      [
+       122750,
+       489450
+      ],
+      [
+       122750,
+       489050
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "noord_buiksloterham",
+    "stadsdeel": "Noord",
+    "omschrijving": "Buiksloterham, industrie die overgaat in woningbouw",
+    "breedte_m": 350,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 10.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       121707,
+       488891
+      ],
+      [
+       122057,
+       488891
+      ],
+      [
+       122057,
+       489191
+      ],
+      [
+       121707,
+       489191
+      ],
+      [
+       121707,
+       488891
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "noord_nieuwendam",
+    "stadsdeel": "Noord",
+    "omschrijving": "Nieuwendammerdijk, oud dorpslint met tuinen",
+    "breedte_m": 300,
+    "hoogte_m": 250,
+    "oppervlakte_ha": 7.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       123703,
+       489259
+      ],
+      [
+       124003,
+       489259
+      ],
+      [
+       124003,
+       489509
+      ],
+      [
+       123703,
+       489509
+      ],
+      [
+       123703,
+       489259
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "noord_tuindorp_oostzaan",
+    "stadsdeel": "Noord",
+    "omschrijving": "Tuindorp Oostzaan, laagbouw met veel voortuinen",
+    "breedte_m": 350,
+    "hoogte_m": 300,
+    "oppervlakte_ha": 10.5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       120967,
+       491457
+      ],
+      [
+       121317,
+       491457
+      ],
+      [
+       121317,
+       491757
+      ],
+      [
+       120967,
+       491757
+      ],
+      [
+       120967,
+       491457
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "noord_schellingwoude",
+    "stadsdeel": "Noord",
+    "omschrijving": "Schellingwoude, landelijk gebied aan het IJmeer",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       126272,
+       489078
+      ],
+      [
+       126622,
+       489078
+      ],
+      [
+       126622,
+       489428
+      ],
+      [
+       126272,
+       489428
+      ],
+      [
+       126272,
+       489078
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuidoost_arena",
+    "stadsdeel": "Zuidoost",
+    "omschrijving": "Johan Cruijff ArenA, stadion met grote parkeerterreinen",
+    "breedte_m": 400,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 14.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       124572,
+       480442
+      ],
+      [
+       124972,
+       480442
+      ],
+      [
+       124972,
+       480792
+      ],
+      [
+       124572,
+       480792
+      ],
+      [
+       124572,
+       480442
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuidoost_bijlmerpark",
+    "stadsdeel": "Zuidoost",
+    "omschrijving": "Bijlmerpark en Anton de Komplein, park naast hoogbouw",
+    "breedte_m": 400,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 14.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       125430,
+       480833
+      ],
+      [
+       125830,
+       480833
+      ],
+      [
+       125830,
+       481183
+      ],
+      [
+       125430,
+       481183
+      ],
+      [
+       125430,
+       480833
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuidoost_gaasperplas",
+    "stadsdeel": "Zuidoost",
+    "omschrijving": "Gaasperplas, recreatieplas met bos",
+    "breedte_m": 400,
+    "hoogte_m": 400,
+    "oppervlakte_ha": 16.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       127726,
+       480451
+      ],
+      [
+       128126,
+       480451
+      ],
+      [
+       128126,
+       480851
+      ],
+      [
+       127726,
+       480851
+      ],
+      [
+       127726,
+       480451
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "zuidoost_nellestein",
+    "stadsdeel": "Zuidoost",
+    "omschrijving": "Nellestein, hoogbouw in het groen",
+    "breedte_m": 350,
+    "hoogte_m": 350,
+    "oppervlakte_ha": 12.2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       127880,
+       479815
+      ],
+      [
+       128230,
+       479815
+      ],
+      [
+       128230,
+       480165
+      ],
+      [
+       127880,
+       480165
+      ],
+      [
+       127880,
+       479815
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "naam": "centrum_volledig",
+    "stadsdeel": "Centrum",
+    "omschrijving": "Heel stadsdeel Centrum, ongeveer 6 vierkante kilometer en dus een lange download",
+    "breedte_m": 2500,
+    "hoogte_m": 2400,
+    "oppervlakte_ha": 600.0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       120400,
+       485700
+      ],
+      [
+       122900,
+       485700
+      ],
+      [
+       122900,
+       488100
+      ],
+      [
+       120400,
+       488100
+      ],
+      [
+       120400,
+       485700
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

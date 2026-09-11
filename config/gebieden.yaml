@@ -1,8 +1,50 @@
 # Analysegebieden in Rijksdriehoek (EPSG:28992), volgorde xmin, ymin, xmax, ymax.
-# Begin klein: een gebied van 400 bij 350 meter is op zoom 15 ongeveer 250 tegels.
+#
+# De middelpunten komen uit de locatieserver van PDOK, het vlak is er als rechthoek
+# omheen gelegd. Dezelfde vlakken staan als polygon in gebieden.geojson, handig om ze
+# in QGIS te bekijken of mee te geven met --grens.
+#
+# Draaien:  python main.py --gebied centrum_dam
+# Overzicht: python -m luchtfoto_objecten gebieden
+#
+# Begin klein. Een vlak van 400 bij 350 meter is op zoom 15 ruim tweehonderd tegels en
+# draait in een halve minuut; centrum_volledig is ruim achtduizend tegels.
+#
+# Alle gebieden liggen binnen de gemeente Amsterdam. Buiten de gemeentegrens levert de
+# beheerkaart niets op en blijft het analysevlak leeg.
+
+centrum_dam:
+  omschrijving: Dam en Nationaal Monument, vrijwel volledig verhard plein
+  stadsdeel: Centrum
+  bbox: [121198, 487198, 121498, 487498]
+
+centrum_spui:
+  omschrijving: Spui en Begijnhof, smalle straten met enkele binnentuinen
+  stadsdeel: Centrum
+  bbox: [121000, 486715, 121300, 487015]
+
+centrum_leidseplein:
+  omschrijving: Leidseplein, druk plein met terrassen en tramsporen
+  stadsdeel: Centrum
+  bbox: [120420, 486157, 120720, 486457]
+
+centrum_rembrandtplein:
+  omschrijving: Rembrandtplein, plein met plantsoen tussen de horeca
+  stadsdeel: Centrum
+  bbox: [121442, 486400, 121742, 486700]
+
+centrum_waterlooplein:
+  omschrijving: Waterlooplein en Stopera, markt en kade
+  stadsdeel: Centrum
+  bbox: [121810, 486559, 122160, 486909]
+
+centrum_artis:
+  omschrijving: Artis en Plantage, veel boomkronen boven verharding
+  stadsdeel: Centrum
+  bbox: [122474, 486470, 122874, 486870]
 
 centrum_plantage:
-  omschrijving: Plantage en Wertheimpark, gemengd beeld met laanbomen, gracht en parkeervakken
+  omschrijving: Plantage en Wertheimpark, laanbomen, gracht en parkeervakken
   stadsdeel: Centrum
   bbox: [122100, 486450, 122500, 486800]
 
@@ -21,10 +63,140 @@ centrum_oostelijke_eilanden:
   stadsdeel: Centrum
   bbox: [122400, 487200, 122900, 487650]
 
-centrum_volledig:
-  omschrijving: Heel stadsdeel Centrum, ongeveer 6 vierkante kilometer en dus een lange download
-  stadsdeel: Centrum
-  bbox: [120400, 485700, 122900, 488100]
+zuid_vondelpark:
+  omschrijving: Vondelpark, gras en boomgroepen met vijvers
+  stadsdeel: Zuid
+  bbox: [119610, 485698, 120010, 485998]
+
+zuid_museumplein:
+  omschrijving: Museumplein, groot grasveld tussen de musea
+  stadsdeel: Zuid
+  bbox: [120438, 485376, 120788, 485726]
+
+zuid_sarphatipark:
+  omschrijving: Sarphatipark, klein stadspark midden in De Pijp
+  stadsdeel: Zuid
+  bbox: [121461, 485088, 121711, 485338]
+
+zuid_beatrixpark:
+  omschrijving: Beatrixpark, park tegen de Zuidas aan
+  stadsdeel: Zuid
+  bbox: [120204, 483960, 120554, 484310]
+
+zuid_amstelpark:
+  omschrijving: Amstelpark, gevarieerd park met heesters en paden
+  stadsdeel: Zuid
+  bbox: [121154, 482376, 121554, 482776]
+
+zuid_zuidas:
+  omschrijving: Zuidas, hoogbouw en brede infrastructuur, weinig maaiveld
+  stadsdeel: Zuid
+  bbox: [119439, 483165, 119839, 483465]
+
+zuid_olympisch_stadion:
+  omschrijving: Olympisch Stadion, sportvelden en parkeerterreinen
+  stadsdeel: Zuid
+  bbox: [118575, 483969, 118925, 484319]
+
+oost_oosterpark:
+  omschrijving: Oosterpark, gras met oude boomgroepen
+  stadsdeel: Oost
+  bbox: [122996, 485608, 123346, 485908]
+
+oost_frankendael:
+  omschrijving: Park Frankendael, landgoed met gazons en opgaand groen
+  stadsdeel: Oost
+  bbox: [123914, 484727, 124264, 485077]
+
+oost_nieuwe_ooster:
+  omschrijving: Begraafplaats De Nieuwe Ooster, groen met veel kleine objecten
+  stadsdeel: Oost
+  bbox: [124247, 484083, 124647, 484483]
+
+oost_flevopark:
+  omschrijving: Flevopark, bos en water aan de rand van de stad
+  stadsdeel: Oost
+  bbox: [125071, 485931, 125471, 486281]
+
+oost_java_eiland:
+  omschrijving: Java-eiland, dichte nieuwbouw op een smal eiland
+  stadsdeel: Oost
+  bbox: [123629, 487770, 123929, 488020]
+
+oost_borneo:
+  omschrijving: Borneo-eiland, laagbouw met kades
+  stadsdeel: Oost
+  bbox: [124566, 486951, 124866, 487201]
+
+oost_amstelkwartier:
+  omschrijving: Amstelkwartier en Ringdijk, nieuwbouw op voormalig industrieterrein
+  stadsdeel: Oost
+  bbox: [123543, 485159, 123893, 485459]
+
+oost_ijburg:
+  omschrijving: IJburg, planmatige nieuwbouw met jonge beplanting
+  stadsdeel: Oost
+  bbox: [127650, 485515, 128050, 485865]
+
+oost_diemerpark:
+  omschrijving: Diemerpark, ruig groen op een voormalige stortplaats
+  stadsdeel: Oost
+  bbox: [128095, 485130, 128495, 485530]
+
+west_westerpark:
+  omschrijving: Westerpark, gras en water naast de spoorzone
+  stadsdeel: West
+  bbox: [120260, 488723, 120610, 489023]
+
+west_westergasfabriek:
+  omschrijving: Westergasfabriek, evenemententerrein met verharding en gras
+  stadsdeel: West
+  bbox: [119848, 488708, 120148, 488958]
+
+west_erasmuspark:
+  omschrijving: Erasmuspark, buurtpark met gazons
+  stadsdeel: West
+  bbox: [118286, 487368, 118586, 487618]
+
+west_rembrandtpark:
+  omschrijving: Rembrandtpark, park langs de ringweg
+  stadsdeel: West
+  bbox: [118070, 486111, 118420, 486461]
+
+west_houthavens:
+  omschrijving: Houthavens, nieuwbouw op het water
+  stadsdeel: West
+  bbox: [120214, 489658, 120514, 489908]
+
+west_sloterdijk:
+  omschrijving: Station Sloterdijk, kantoren en sporen, vrijwel geen groen
+  stadsdeel: West
+  bbox: [117354, 489165, 117704, 489465]
+
+nieuw_west_sloterplas:
+  omschrijving: Sloterplas, open water met parkrand
+  stadsdeel: Nieuw-West
+  bbox: [115653, 486680, 116053, 487080]
+
+nieuw_west_osdorpplein:
+  omschrijving: Osdorpplein, winkelcentrum met plein
+  stadsdeel: Nieuw-West
+  bbox: [115301, 485724, 115601, 486024]
+
+nieuw_west_geuzenveld:
+  omschrijving: Geuzenveld, naoorlogse stroken met veel openbaar groen
+  stadsdeel: Nieuw-West
+  bbox: [114965, 487795, 115315, 488145]
+
+nieuw_west_riekerhaven:
+  omschrijving: Riekerhaven, sportvelden en bedrijventerrein
+  stadsdeel: Nieuw-West
+  bbox: [117462, 483746, 117812, 484096]
+
+nieuw_west_sportpark_sloten:
+  omschrijving: Sportpark Sloten, aaneengesloten sportvelden
+  stadsdeel: Nieuw-West
+  bbox: [115249, 483505, 115599, 483855]
 
 noord_ndsm:
   omschrijving: NDSM-werf, grote verharde vlakken en nieuwbouw in ontwikkeling
@@ -40,3 +212,48 @@ noord_noorderpark:
   omschrijving: Noorderpark, gras en water met paden erdoorheen
   stadsdeel: Noord
   bbox: [122750, 489050, 123250, 489450]
+
+noord_buiksloterham:
+  omschrijving: Buiksloterham, industrie die overgaat in woningbouw
+  stadsdeel: Noord
+  bbox: [121707, 488891, 122057, 489191]
+
+noord_nieuwendam:
+  omschrijving: Nieuwendammerdijk, oud dorpslint met tuinen
+  stadsdeel: Noord
+  bbox: [123703, 489259, 124003, 489509]
+
+noord_tuindorp_oostzaan:
+  omschrijving: Tuindorp Oostzaan, laagbouw met veel voortuinen
+  stadsdeel: Noord
+  bbox: [120967, 491457, 121317, 491757]
+
+noord_schellingwoude:
+  omschrijving: Schellingwoude, landelijk gebied aan het IJmeer
+  stadsdeel: Noord
+  bbox: [126272, 489078, 126622, 489428]
+
+zuidoost_arena:
+  omschrijving: Johan Cruijff ArenA, stadion met grote parkeerterreinen
+  stadsdeel: Zuidoost
+  bbox: [124572, 480442, 124972, 480792]
+
+zuidoost_bijlmerpark:
+  omschrijving: Bijlmerpark en Anton de Komplein, park naast hoogbouw
+  stadsdeel: Zuidoost
+  bbox: [125430, 480833, 125830, 481183]
+
+zuidoost_gaasperplas:
+  omschrijving: Gaasperplas, recreatieplas met bos
+  stadsdeel: Zuidoost
+  bbox: [127726, 480451, 128126, 480851]
+
+zuidoost_nellestein:
+  omschrijving: Nellestein, hoogbouw in het groen
+  stadsdeel: Zuidoost
+  bbox: [127880, 479815, 128230, 480165]
+
+centrum_volledig:
+  omschrijving: Heel stadsdeel Centrum, ongeveer 6 vierkante kilometer en dus een lange download
+  stadsdeel: Centrum
+  bbox: [120400, 485700, 122900, 488100]

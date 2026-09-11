@@ -1,12 +1,16 @@
+# Alles wat de pijplijn nodig heeft. Hiermee draait `python main.py`.
+# Los daarvan staan requirements-ml.txt (voor --modellen en --bomen) en
+# requirements-sam.txt (alleen voor contourverfijning met Segment Anything).
 numpy>=1.26
 pandas>=2.1
 requests>=2.31
+urllib3>=1.26          # direct gebruikt voor de herhaalstrategie op de Amsterdam-API
 pillow>=10.0
 shapely>=2.0
 pyproj>=3.6
-geopandas>=1.0
+geopandas>=1.0         # neemt pyogrio mee, nodig om GeoPackages te schrijven
 rasterio>=1.3
 scikit-image>=0.22
 scipy>=1.11
-pyyaml>=6.0
+pyyaml>=6.0            # levert de module `yaml`, voor config/*.yaml
 tqdm>=4.66
