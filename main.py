@@ -92,6 +92,10 @@ def bouw_parser() -> argparse.ArgumentParser:
         "--sweep", action="store_true",
         help="tien parameterinstellingen per klasse, in aparte GeoPackages om te beoordelen",
     )
+    parser.add_argument(
+        "--jaren", type=int, metavar="N", nargs="?", const=4,
+        help="vergelijk groen en verharding over de laatste N jaargangen, standaard 4",
+    )
     return parser
 
 
@@ -148,6 +152,26 @@ def toon_afwijkingen(signaleringen: gpd.GeoDataFrame, witte_vlekken: gpd.GeoData
     return gesorteerd.drop(columns="_volgorde")
 
 
+def _toon_boomtoets(lagen, gebied, instellingen) -> None:
+    """Toetst de kroon- en groenveldlaag tegen het bomenregister en de groenobjecten."""
+    from luchtfoto_objecten.groenstructuur import toets_tegen_register
+    from luchtfoto_objecten.referentie.amsterdam import AmsterdamRegistratie
+
+    structuur = {naam: laag for naam, laag in lagen.items() if naam.startswith("detectie_")}
+    if not structuur:
+        return
+    klant = AmsterdamRegistratie(cache_map=instellingen.cache_map)
+    toets = toets_tegen_register(
+        {"detectie_boomkroon": lagen.get("detectie_boomkroon_ir", lagen.get("detectie_boomkroon")),
+         "detectie_groenstrook": lagen.get("detectie_groenveld_ir", lagen.get("detectie_groenstrook"))},
+        klant.haal("bomen", gebied.bbox),
+        klant.haal("groenobjecten", gebied.bbox),
+    )
+    if not toets.empty:
+        print("\nToets tegen de registratie:")
+        print(toets.to_string(index=False))
+
+
 def _voeg_beelden_toe(pad: Path, gebied, instellingen) -> None:
     """Zet de opnamen waarop de classificatie rust als rasterlaag in de GeoPackage.
 
@@ -186,6 +210,27 @@ def main(argumentenlijst: list[str] | None = None) -> None:
     uitvoer_map = Path("output") / naam
     uitvoer_map.mkdir(parents=True, exist_ok=True)
     print(f"Analysegebied: {gebied}, grensvlak {grens.area:.0f} m2")
+
+    if argumenten.jaren:
+        from luchtfoto_objecten.meerjaren import analyseer as analyseer_jaren
+
+        lagen, overzicht, veranderingen, assets = analyseer_jaren(gebied, instellingen, argumenten.jaren)
+        if overzicht.empty:
+            raise SystemExit("Geen bruikbare jaargangen gevonden voor dit gebied")
+        print("\nPer jaargang:")
+        print(overzicht.to_string(index=False))
+        if not veranderingen.empty:
+            print("\nVerschil tussen opeenvolgende jaren:")
+            print(veranderingen.to_string(index=False))
+        pad = schrijf_geopackage({naam: knip_op_grens(laag, grens) for naam, laag in lagen.items()},
+                                 uitvoer_map / "meerjaren.gpkg")
+        overzicht.to_csv(uitvoer_map / "meerjaren_overzicht.csv", index=False)
+        veranderingen.to_csv(uitvoer_map / "meerjaren_verschillen.csv", index=False)
+        if not assets.empty:
+            assets.to_csv(uitvoer_map / "meerjaren_per_asset.csv", index=False)
+            print(f"\n{len(assets)} geregistreerde objecten met een dekking per jaar in meerjaren_per_asset.csv")
+        print(f"\nLagen per jaar: {pad}")
+        return
 
     if argumenten.sweep:
         from luchtfoto_objecten.sweep import voer_sweep_uit
@@ -234,6 +279,7 @@ def main(argumentenlijst: list[str] | None = None) -> None:
 
         vlakken, medianen, scores = analyseer(gebied, instellingen)
         lagen["groen_boom_of_vlak"] = knip_op_grens(vlakken, grens)
+        _toon_boomtoets(lagen, gebied, instellingen)
         print("\nBoomkroon of groenvlak, geijkt op het bomenregister:")
         print(vlakken["label"].value_counts(dropna=False).to_string())
         print("\nMediaan per kenmerk:")

@@ -43,6 +43,11 @@ def infraroodlaag(hoofdlaag: str, cache_map=None) -> str | None:
     if kandidaat in lagen:
         return kandidaat
     if "Actueel_orthoHRIR" in lagen:
+        # Hard melden, want anders leg je ongemerkt een jaargang kleur naast infrarood van nu.
+        logger.warning(
+            "Geen infrarood bij %s, we vallen terug op Actueel_orthoHRIR; "
+            "let op dat dit een andere jaargang kan zijn", hoofdlaag,
+        )
         return "Actueel_orthoHRIR"
     return None
 
@@ -52,9 +57,11 @@ def haal_infrarood(gebied, instellingen: Instellingen, laag: str | None = None):
     if laag is None:
         logger.warning("Geen infraroodlaag beschikbaar")
         return None
+    from luchtfoto_objecten.bladstand import _passende_zoom
+
     wmts = LuchtfotoWMTS(
-        laag=laag, zoom=instellingen.luchtfoto.zoom, cache_map=instellingen.cache_map,
-        max_werkers=instellingen.luchtfoto.max_werkers,
+        laag=laag, zoom=_passende_zoom(laag, instellingen.luchtfoto.zoom),
+        cache_map=instellingen.cache_map, max_werkers=instellingen.luchtfoto.max_werkers,
     )
     return wmts.haal_uitsnede(gebied.bbox)
 

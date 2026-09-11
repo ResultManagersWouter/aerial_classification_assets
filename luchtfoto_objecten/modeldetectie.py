@@ -384,10 +384,11 @@ def _infraroodlagen(
         groen_op_ir = np.zeros(ir_kenmerken.vorm, dtype=bool)
     kroon, veld = splits_kroon_en_veld(waarde, groen_op_ir, ir_kenmerken.maaiveld, drempel)
 
+    # Alleen groenveld en kroon. Een aparte NDVI-groenlaag zou per constructie hetzelfde
+    # masker zijn als groenveld, en twee namen voor één laag maakt het beoordelen alleen
+    # maar verwarrend.
     lagen = {}
     for laagnaam, masker, klasse, min_opp in (
-        ("detectie_groen_ndvi", (waarde > drempel) & ir_kenmerken.maaiveld, "groen",
-         instellingen.groen.min_oppervlakte_m2),
         ("detectie_groenveld_ir", veld, "groenveld", instellingen.groenstructuur.strook_min_oppervlakte_m2),
         ("detectie_boomkroon_ir", kroon, "boomkroon", instellingen.groenstructuur.kroon_min_oppervlakte_m2),
     ):
@@ -458,4 +459,6 @@ def _naar_ander_raster(masker, van: Beeldkenmerken, naar: Beeldkenmerken) -> np.
     geometrieen = masker_naar_polygonen(masker, van.transform, 1.0, 0.0)
     if not geometrieen:
         return np.zeros(naar.vorm, dtype=bool)
-    return polygonen_naar_masker(geometrieen, naar.vorm, naar.transform)
+    # Zonder all_touched, anders groeit het masker bij elke oversteek met een pixel aan
+    # elke rand, en dat stapelt op als je het vaker doet.
+    return polygonen_naar_masker(geometrieen, naar.vorm, naar.transform, all_touched=False)

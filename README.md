@@ -114,6 +114,70 @@ minuten. Kijk daarna in `output/centrum_vergelijking/`: de GeoPackage open je in
 hieronder "Wat eruit komt", en vooral "Beperkingen", want een deel van de signalen is
 ruis met een bekende oorzaak.
 
+## Alle commando's op een rij
+
+Eén ingang, `main.py`, en een vlag bepaalt wat je krijgt. Zonder vlag draait de gewone
+analyse. De vlaggen zijn te combineren, behalve `--sweep` en `--jaren`, die alleen hun
+eigen werk doen en daarna stoppen.
+
+| commando | wat het doet | wat je krijgt in `output/<naam>/` |
+|---|---|---|
+| `python main.py --gebied X` | detectie plus vergelijking met de registratie | `X.gpkg` met de signalering, `afwijkingen.csv`, `samenvatting_per_thema.csv` |
+| `... --modellen` | elk detectiemodel als eigen laag, en een score tegen de BGT | extra lagen `detectie_groen_<model>` en `detectie_verharding_<model>`, plus `modeloverzicht.csv`, `modelvergelijking.csv`, `kenmerkbelang.csv` |
+| `... --bomen` | is het gevonden groen een kroon of maaiveld, geijkt op het bomenregister | laag `groen_boom_of_vlak`, plus `boom_of_vlak.csv` en `boomherkenning_score.csv` |
+| `... --sweep` | tien parameterinstellingen per klasse, om zelf te beoordelen | vier losse bestanden: `groen.gpkg`, `verharding.gpkg`, `bomen.gpkg`, `infrarood.gpkg`, elk met `sweep_*.csv` |
+| `... --jaren N` | groen en verharding over de laatste N jaargangen | `meerjaren.gpkg` met een laag per klasse per jaar, `meerjaren_overzicht.csv`, `meerjaren_verschillen.csv`, `meerjaren_per_asset.csv` |
+
+Het gebied geef je op één van vier manieren op, en de rest van de vlaggen werkt er
+hetzelfde mee:
+
+| vlag | volgorde | voorbeeld |
+|---|---|---|
+| `--gebied` | naam uit `config/gebieden.yaml` | `--gebied noord_vliegenbos` |
+| `--extent` | xmin xmax ymin ymax, zoals QGIS toont | `--extent 121641 122215 486408 487051` |
+| `--bbox` | xmin ymin xmax ymax, zoals dit project | `--bbox 121641 486408 122215 487051` |
+| `--grens` | bestand met een polygon, ook niet-rechthoekig | `--grens data/aoi/buurt.geojson` |
+
+Verder zijn er `--naam` voor de uitvoermap, en `--zoom` voor de resolutie (15 is 10,5 cm
+per pixel, 16 is 5,25 cm en viermaal zoveel tegels).
+
+In elke GeoPackage zit ook de luchtfoto waarop de classificatie rust, als rasterlaag
+`luchtfoto_<laagnaam>`. Je opent dus één bestand in QGIS en hebt beeld en vlakken bij
+elkaar, inclusief het infrarood.
+
+Naast `main.py` bestaat de CLI van het pakket zelf, handig om alleen een deel te draaien:
+
+```bash
+python -m luchtfoto_objecten gebieden      # de 49 gebieden
+python -m luchtfoto_objecten lagen         # luchtfotolagen en registraties
+python -m luchtfoto_objecten registratie --gebied noord_ndsm
+```
+
+## Over de jaren heen vergelijken
+
+`--jaren 4` legt de laatste vier jaargangen naast elkaar. Drie dingen maken dat lastig, en
+die worden alle drie aangepakt.
+
+Elke jaargang heeft zijn eigen kleurzweem, dus een vaste drempel die op 2026 klopt mist in
+2023 de helft. De drempel wordt daarom per jaargang opnieuw op dezelfde registratie geijkt.
+Op het Noorderpark levert dat vier heel verschillende drempels op, van +0,004 in 2026 tot
+-0,037 in 2023, terwijl de overeenkomst met de registratie steeds rond de 0,75 tot 0,87 IoU
+blijft. Wat je vergelijkt zijn dus detecties die elk even goed zijn afgeregeld.
+
+Niet elk jaar heeft beide opnamen. Daarom wordt gekeken welke modaliteit álle gekozen jaren
+hebben, en daarop wordt vergeleken; infrarood als dat kan, anders kleur. De gebruikte
+opname staat per jaar in `meerjaren_overzicht.csv`, zodat je kunt zien waar een sprong
+vandaan komt.
+
+En bomen wisselen met het seizoen: in volle bloei is de kroon veel groter dan in het
+voorjaar. Kroonoppervlak van jaar tot jaar naast elkaar leggen meet dan vooral de
+bladstand. Daarom staat het bladaandeel per jaargang in het overzicht en ook naast elk
+verschil, zodat een kleinere kroon in een kaal jaar niet als gekapte boom wordt gelezen.
+
+In `meerjaren_per_asset.csv` staat per geregistreerd object welk deel ervan elk jaar op de
+foto terug te zien is, met de verandering tussen het eerste en het laatste jaar. Dat is de
+lijst om op te sorteren als je wilt weten welk object echt veranderd is.
+
 ## Gebruiken
 
 `main.py` is de ingang. Je geeft een gebied mee in Rijksdriehoek (EPSG:28992), en de

@@ -42,18 +42,28 @@ def analyseer(gebied, instellingen=None, model: str = "regels"):
     score van een model dat alleen op beeldkenmerken kijkt.
     """
     from luchtfoto_objecten.instellingen import Instellingen
-    from luchtfoto_objecten.modeldetectie import _kenmerken_van, bouw_detectielagen
+    from luchtfoto_objecten.modeldetectie import (
+        _kenmerken_van, groenmodellen, haal_beelden, naar_laag, opschonen,
+    )
     from luchtfoto_objecten.referentie.amsterdam import AmsterdamRegistratie
-    from luchtfoto_objecten.modeldetectie import haal_beelden
 
     instellingen = instellingen or Instellingen.laden()
     hoofd, groenbeeld, registratie, analysevlak = haal_beelden(gebied, instellingen)
-    lagen, _ = bouw_detectielagen(gebied, instellingen)
-    vlakken = lagen.get(f"detectie_groen_{model}")
-    if vlakken is None or vlakken.empty:
-        raise SystemExit(f"Geen groenvlakken van model '{model}' om te onderzoeken")
-
     kenmerken = _kenmerken_van(groenbeeld, registratie, analysevlak, instellingen)
+
+    # Alleen het gevraagde model draaien. Via bouw_detectielagen kwam hier eerder het
+    # volledige modellenpakket voorbij, inclusief clustering en gradient boosting over het
+    # hele raster, om er vervolgens één laag uit te pakken.
+    maskers = groenmodellen(kenmerken, instellingen)
+    if model not in maskers:
+        raise SystemExit(f"Onbekend groenmodel '{model}'. Beschikbaar: {', '.join(sorted(maskers))}")
+    vlakken = naar_laag(
+        opschonen(maskers[model] & kenmerken.maaiveld, kenmerken.transform, instellingen.groen.min_oppervlakte_m2),
+        kenmerken.transform, "groen", model,
+        instellingen.groen.min_oppervlakte_m2, instellingen.groen.vereenvoudiging_m, analysevlak,
+    )
+    if vlakken.empty:
+        raise SystemExit(f"Geen groenvlakken van model '{model}' om te onderzoeken")
     verharding = pd.concat(
         [registratie["wegdelen"], registratie["onbegroeideterreindelen"]], ignore_index=True
     )

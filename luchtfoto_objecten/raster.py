@@ -110,11 +110,13 @@ def gelabeld_naar_polygonen(
 
 
 def polygonen_naar_masker(
-    geometrieen, vorm: tuple[int, int], transform: Affine, buffer_m: float = 0.0
+    geometrieen, vorm: tuple[int, int], transform: Affine, buffer_m: float = 0.0,
+    all_touched: bool = True,
 ) -> np.ndarray:
     lijst = [geo.buffer(buffer_m) if buffer_m else geo for geo in geometrieen if geo is not None and not geo.is_empty]
     if not lijst:
         return np.zeros(vorm, dtype=bool)
     return rasterize(
-        ((geo, 1) for geo in lijst), out_shape=vorm, transform=transform, fill=0, dtype=np.uint8, all_touched=True
+        ((geo, 1) for geo in lijst), out_shape=vorm, transform=transform, fill=0, dtype=np.uint8,
+        all_touched=all_touched,
     ).astype(bool)
