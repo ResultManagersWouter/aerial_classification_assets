@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 from shapely.geometry import box
 from shapely.ops import unary_union
@@ -79,6 +80,11 @@ def voer_analyse_uit(
     logger.info("Analyse gestart voor %s", gebied)
 
     hoofd = _haal_uitsnede(instellingen.luchtfoto.laag, instellingen.luchtfoto.zoom, gebied, instellingen, toon_voortgang)
+
+    # De registratie eerst, want de keuze van de groenopname wordt eraan geijkt.
+    registratie = AmsterdamRegistratie(cache_map=instellingen.cache_map).haal_meerdere(
+        bronnen_voor_analyse(), gebied.bbox
+    )
     keuze = bepaal_groenbron(
         gebied.bbox,
         hoofdlaag=instellingen.luchtfoto.laag,
@@ -86,16 +92,13 @@ def voer_analyse_uit(
         cache_map=instellingen.cache_map,
         voorkeur=instellingen.luchtfoto.groenlaag,
         minimaal_aandeel=instellingen.luchtfoto.groen_minimaal_aandeel,
+        referentie=registratie,
     )
     if keuze.laag == hoofd.laag and keuze.zoom == hoofd.zoom:
         groenbeeld = hoofd
     else:
         logger.info("Vegetatie wordt bepaald op %s (zoom %s)", keuze.laag, keuze.zoom)
         groenbeeld = _haal_uitsnede(keuze.laag, keuze.zoom, gebied, instellingen, toon_voortgang)
-
-    registratie = AmsterdamRegistratie(cache_map=instellingen.cache_map).haal_meerdere(
-        bronnen_voor_analyse(), gebied.bbox
-    )
 
     analysevlak = _analysevlak(gebied, registratie, instellingen)
     groen = _detecteer_groen(groenbeeld, registratie, instellingen, sam_checkpoint, sam_modeltype)
@@ -157,6 +160,29 @@ def _haal_uitsnede(laag: str, zoom: int, gebied: Gebied, instellingen: Instellin
     return wmts.haal_uitsnede(gebied.bbox, toon_voortgang=toon_voortgang)
 
 
+def _geijkte_groendrempel(groenbeeld, registratie, uitsluiten) -> float | None:
+    """De drempel die op deze opname de beste overlap met de registratie geeft.
+
+    Otsu kiest stelselmatig te hoog, zie kalibratie.py. Lukt het ijken niet, bijvoorbeeld
+    omdat er te weinig geregistreerde vlakken in beeld zijn, dan geven we None terug en
+    valt de detectie zelf terug op Otsu.
+    """
+    from luchtfoto_objecten.detectie.kenmerken import exces_groen
+    from luchtfoto_objecten.kalibratie import ijk_drempel, referentiemaskers
+
+    vorm = groenbeeld.afbeelding.shape[:2]
+    groen_ref, verhard_ref = referentiemaskers(registratie, vorm, groenbeeld.transform, ~uitsluiten)
+    keuze = ijk_drempel(exces_groen(groenbeeld.afbeelding), groen_ref, verhard_ref)
+    if not keuze.bruikbaar or not np.isfinite(keuze.drempel):
+        logger.info("Te weinig referentievlakken om de groendrempel te ijken, we gebruiken Otsu")
+        return None
+    logger.info(
+        "Groendrempel geijkt op %.4f (IoU %.3f, precisie %.3f, recall %.3f, AUC %.3f)",
+        keuze.drempel, keuze.iou, keuze.precisie, keuze.recall, keuze.scheidend_vermogen,
+    )
+    return keuze.drempel
+
+
 def _uitsluitmasker(uitsnede: Uitsnede, registratie: dict[str, gpd.GeoDataFrame], buffer_m: float):
     vorm = uitsnede.afbeelding.shape[:2]
     gebouwen = polygonen_naar_masker(registratie["panden"].geometry, vorm, uitsnede.transform, buffer_m=buffer_m)
@@ -166,8 +192,13 @@ def _uitsluitmasker(uitsnede: Uitsnede, registratie: dict[str, gpd.GeoDataFrame]
 
 def _detecteer_groen(groenbeeld, registratie, instellingen, sam_checkpoint, sam_modeltype) -> gpd.GeoDataFrame:
     uitsluiten = _uitsluitmasker(groenbeeld, registratie, instellingen.verharding.gebouwbuffer_m)
-    masker = bepaal_groenmasker(groenbeeld.afbeelding, groenbeeld.transform, instellingen.groen, uitsluiten)
-    groen = detecteer_groen(groenbeeld.afbeelding, groenbeeld.transform, instellingen.groen, masker=masker)
+    drempel = _geijkte_groendrempel(groenbeeld, registratie, uitsluiten)
+    masker = bepaal_groenmasker(
+        groenbeeld.afbeelding, groenbeeld.transform, instellingen.groen, uitsluiten, drempel
+    )
+    groen = detecteer_groen(
+        groenbeeld.afbeelding, groenbeeld.transform, instellingen.groen, masker=masker, drempel=drempel
+    )
     if sam_checkpoint:
         from luchtfoto_objecten.detectie.sam_contouren import SamContourVerfijner
 
