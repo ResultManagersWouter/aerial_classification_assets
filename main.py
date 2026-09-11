@@ -86,6 +86,10 @@ def bouw_parser() -> argparse.ArgumentParser:
         help="waarop geclassificeerd wordt; standaard infrarood, want NDVI scheidt scherper",
     )
     parser.add_argument(
+        "--jaargangen", type=int, default=1, metavar="N",
+        help="gebruik N infraroodjaargangen samen; wat maar in een enkel jaar groen is telt niet mee",
+    )
+    parser.add_argument(
         "--geen-hoogte", action="store_true",
         help="classificeer zonder AHN; levert alleen begroeid en verharding op",
     )
@@ -174,10 +178,14 @@ def _classificeer_en_toon(gebied, instellingen, argumenten, grens):
     from luchtfoto_objecten.classificatie import classificeer
 
     klassen, overzicht, beeld, bronnen, invoer = classificeer(
-        gebied, instellingen, grens=grens, gebruik_hoogte=not argumenten.geen_hoogte
+        gebied, instellingen, grens=grens, gebruik_hoogte=not argumenten.geen_hoogte,
+        jaargangen=argumenten.jaargangen,
     )
     print(f"\nClassificatie op open bronnen: {bronnen['beeld']} ({bronnen['beeldsoort']}), "
           f"hoogte uit {bronnen['hoogtebron']}")
+    if bronnen.get("jaarverslag"):
+        print(f"Consensus over {bronnen['jaargangen']} infraroodjaargangen:")
+        print(pd.DataFrame(bronnen["jaarverslag"]).to_string(index=False))
     if bronnen["klassen"] != "volledig":
         print("Let op: zonder hoogte vallen heesters, hagen en boomkronen weg.")
     print(overzicht.to_string(index=False))

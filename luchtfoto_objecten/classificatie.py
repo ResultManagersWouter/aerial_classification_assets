@@ -132,6 +132,19 @@ def deel_in(
     }
 
 
+def _gemiddelde_per_vlak(geometrieen, vlak: np.ndarray, transform) -> pd.Series:
+    """Gemiddelde van een raster binnen elk vlak, bijvoorbeeld de zekerheid."""
+    from rasterio.features import rasterize
+    from scipy import ndimage
+
+    labels = rasterize(
+        ((geo, index + 1) for index, geo in enumerate(geometrieen)),
+        out_shape=vlak.shape, transform=transform, fill=0, dtype=np.int32,
+    )
+    waarden = ndimage.mean(vlak, labels=labels, index=np.arange(1, len(geometrieen) + 1))
+    return pd.Series(np.nan_to_num(waarden), index=geometrieen.index)
+
+
 def _vormmaten(vlakken: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     oppervlak = vlakken.geometry.area
     omtrek = vlakken.geometry.length.replace(0, np.nan)
@@ -176,7 +189,7 @@ def _naar_vlakken(masker, transform, klasse: str, min_opp: float, vereenvoudigin
 
 def classificeer(
     gebied, instellingen: Instellingen | None = None, soort: str | None = None,
-    grens: BaseGeometry | None = None, gebruik_hoogte: bool = True,
+    grens: BaseGeometry | None = None, gebruik_hoogte: bool = True, jaargangen: int = 1,
 ) -> tuple[dict[str, gpd.GeoDataFrame], pd.DataFrame, object, dict, dict]:
     """Classificeert het gebied op beeld en hoogte, zonder registratie erbij.
 
@@ -202,6 +215,26 @@ def classificeer(
     if grens is not None:
         maaiveld &= polygonen_naar_masker([grens], vorm, uitsnede.transform)
 
+    # Meerdere jaargangen samen geven een steviger oordeel dan één opname: wat maar in één
+    # jaar groen is, is meestal een auto, een schaduw of een natte plek.
+    zekerheid = None
+    jaarverslag: list[dict] = []
+    if jaargangen > 1 and gebruikt == "infrarood":
+        from luchtfoto_objecten.meerjarig_beeld import consensus
+
+        uitkomst = consensus(
+            gebied, instellingen, vorm, uitsnede.transform, drempel, jaargangen, binnen=maaiveld
+        )
+        if uitkomst is not None:
+            tellers, zekerheid, jaarverslag = uitkomst
+            # Meerderheid van de jaargangen, zodat één afwijkend jaar de uitspraak niet kantelt.
+            nodig = max(1, (len(jaarverslag) + 1) // 2)
+            getal = np.where(tellers >= nodig, max(drempel + 0.01, 1.0), drempel - 1.0).astype(np.float32)
+            logger.info(
+                "Consensus over %s jaargangen, een pixel telt als begroeid vanaf %s jaar",
+                len(jaarverslag), nodig,
+            )
+
     maskers = deel_in(getal, objecthoogte, ruwheid, maaiveld, drempel, instellingen)
 
     lagen: dict[str, gpd.GeoDataFrame] = {}
@@ -214,6 +247,8 @@ def classificeer(
                 hagen["klasse"] = "haag"
                 lagen["classificatie_haag"] = hagen
             vlakken = heesters
+        if zekerheid is not None and not vlakken.empty:
+            vlakken["zekerheid"] = _gemiddelde_per_vlak(vlakken.geometry, zekerheid, uitsnede.transform).round(2)
         if klasse == "boomkroon" and not vlakken.empty:
             # Het zwaartepunt van de kroon is de plek van de boom.
             vlakken["middelpunt_x"] = vlakken.geometry.centroid.x.round(2)
@@ -226,6 +261,8 @@ def classificeer(
         "beeldsoort": gebruikt,
         "vegetatiedrempel": round(float(drempel), 4),
         "hoogtebron": "AHN dsm_05m/dtm_05m" if objecthoogte is not None else "geen",
+        "jaargangen": len(jaarverslag) if jaarverslag else 1,
+        "jaarverslag": jaarverslag,
         "klassen": "volledig" if objecthoogte is not None else "beperkt, zonder hoogte",
     }
     overzicht = pd.DataFrame([
@@ -238,6 +275,8 @@ def classificeer(
         for naam, laag in sorted(lagen.items())
     ])
     invoer = {"vegetatiegetal": getal}
+    if zekerheid is not None:
+        invoer["zekerheid_jaargangen"] = zekerheid
     if objecthoogte is not None:
         invoer["objecthoogte"] = objecthoogte
         invoer["hoogteruwheid"] = ruwheid
