@@ -40,6 +40,7 @@ import logging
 from pathlib import Path
 
 import geopandas as gpd
+import pandas as pd
 from shapely.geometry import box
 
 from luchtfoto_objecten.gebieden import gebied_op_naam, gebied_uit_bbox
@@ -83,6 +84,18 @@ def bouw_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--beeld", choices=("infrarood", "ortho"), default=None,
         help="waarop geclassificeerd wordt; standaard infrarood, want NDVI scheidt scherper",
+    )
+    parser.add_argument(
+        "--geen-hoogte", action="store_true",
+        help="classificeer zonder AHN; levert alleen begroeid en verharding op",
+    )
+    parser.add_argument(
+        "--object", type=Path, metavar="BESTAND",
+        help="classificeer alleen de objecten in dit bestand, in plaats van een heel gebied",
+    )
+    parser.add_argument(
+        "--alleen-classificatie", action="store_true",
+        help="stop na de classificatie, zonder vergelijking met de registratie",
     )
     parser.add_argument(
         "--modellen", action="store_true",
@@ -154,6 +167,53 @@ def toon_afwijkingen(signaleringen: gpd.GeoDataFrame, witte_vlekken: gpd.GeoData
             f"samen {witte_vlekken['oppervlakte_m2'].sum():.0f} m2."
         )
     return gesorteerd.drop(columns="_volgorde")
+
+
+def _classificeer_en_toon(gebied, instellingen, argumenten, grens):
+    """Classificeert op open bronnen alleen, en laat zien waar het op rust."""
+    from luchtfoto_objecten.classificatie import classificeer
+
+    klassen, overzicht, beeld, bronnen = classificeer(
+        gebied, instellingen, grens=grens, gebruik_hoogte=not argumenten.geen_hoogte
+    )
+    print(f"\nClassificatie op open bronnen: {bronnen['beeld']} ({bronnen['beeldsoort']}), "
+          f"hoogte uit {bronnen['hoogtebron']}")
+    if bronnen["klassen"] != "volledig":
+        print("Let op: zonder hoogte vallen heesters, hagen en boomkronen weg.")
+    print(overzicht.to_string(index=False))
+    return klassen, overzicht, beeld, bronnen
+
+
+def _classificeer_objecten(argumenten, instellingen, uitvoer_map: Path) -> None:
+    """Classificeert losse objecten uit een bestand, zonder een heel gebied te draaien."""
+    from luchtfoto_objecten.classificatie import classificeer_object
+
+    objecten = gpd.read_file(argumenten.object)
+    if objecten.empty:
+        raise SystemExit(f"{argumenten.object} bevat geen geometrie")
+    if objecten.crs is None:
+        raise SystemExit(f"{argumenten.object} heeft geen CRS, omzetten naar RD is dan gokwerk")
+    objecten = objecten.to_crs(RD)
+    print(f"{len(objecten)} objecten classificeren uit {argumenten.object}")
+
+    delen = []
+    for positie, rij in objecten.iterrows():
+        tabel = classificeer_object(
+            rij.geometry, instellingen, gebruik_hoogte=not argumenten.geen_hoogte
+        )
+        tabel.insert(0, "object", str(rij.get("identificatie", rij.get("id", positie))))
+        delen.append(tabel)
+        hoofdklasse = tabel.iloc[0] if not tabel.empty else None
+        print(
+            f"  {tabel['object'].iloc[0]:>24}: "
+            + (f"{hoofdklasse['klasse']} ({hoofdklasse['aandeel']:.0%})" if hoofdklasse is not None else "niets gevonden")
+        )
+
+    resultaat = pd.concat(delen, ignore_index=True)
+    uitvoer_map.mkdir(parents=True, exist_ok=True)
+    pad = uitvoer_map / "objecten_geclassificeerd.csv"
+    resultaat.to_csv(pad, index=False)
+    print(f"\nPer object en per klasse weggeschreven: {pad}")
 
 
 def _schrijf_beeldpakket(uitvoer_map: Path, beeld, soort: str) -> None:
@@ -230,7 +290,19 @@ def main(argumentenlijst: list[str] | None = None) -> None:
     gebied = gebied_uit_bbox(grens.bounds, naam=naam)
     uitvoer_map = Path("output") / naam
     uitvoer_map.mkdir(parents=True, exist_ok=True)
+    if argumenten.object:
+        _classificeer_objecten(argumenten, instellingen, uitvoer_map)
+        return
+
     print(f"Analysegebied: {gebied}, grensvlak {grens.area:.0f} m2")
+
+    if argumenten.alleen_classificatie:
+        klassen, overzicht, beeld, bronnen = _classificeer_en_toon(gebied, instellingen, argumenten, grens)
+        pad = schrijf_geopackage({n: l for n, l in klassen.items() if not l.empty}, uitvoer_map / f"{naam}.gpkg")
+        overzicht.to_csv(uitvoer_map / "classificatie.csv", index=False)
+        _schrijf_beeldpakket(uitvoer_map, beeld, bronnen["beeldsoort"])
+        print(f"\nKlassen: {pad}")
+        return
 
     if argumenten.jaren:
         from luchtfoto_objecten.meerjaren import analyseer as analyseer_jaren
@@ -279,13 +351,10 @@ def main(argumentenlijst: list[str] | None = None) -> None:
 
     afwijkend = toon_afwijkingen(lagen["signaleringen"], lagen["witte_vlekken"])
 
-    from luchtfoto_objecten.classificatie import classificeer
-
-    klassen, klasseoverzicht, beeld, beeldsoort = classificeer(gebied, instellingen)
+    klassen, klasseoverzicht, beeld, bronnen = _classificeer_en_toon(gebied, instellingen, argumenten, grens)
     lagen.update({naam: knip_op_grens(laag, grens) for naam, laag in klassen.items()})
-    print(f"\nClassificatie op de {beeldsoort}opname {beeld.laag}:")
-    print(klasseoverzicht.to_string(index=False))
     klasseoverzicht.to_csv(uitvoer_map / "classificatie.csv", index=False)
+    beeldsoort = bronnen["beeldsoort"]
 
     if argumenten.modellen:
         from luchtfoto_objecten.modeldetectie import bouw_detectielagen

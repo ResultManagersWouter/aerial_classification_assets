@@ -77,6 +77,33 @@ class GroenstructuurParameters:
 
 
 @dataclass
+class ClassificatieParameters:
+    """Grenzen voor de classificatie op beeld en hoogte, zonder registratie erbij.
+
+    De hoogtes zijn de gebruikelijke beheergrenzen: gras blijft onder de enkel, een
+    heestervak onder anderhalve meter, en wat boven de drie meter uitkomt is een boom of
+    een bouwwerk. Pas ze aan op wat je beheert, want een lage haag in de ene gemeente is
+    een hoge bodembedekker in de andere.
+    """
+
+    ndvi_drempel: float = 0.05           # visueel beoordeeld op de infraroodbeelden
+    gras_max_hoogte_m: float = 0.5
+    heester_max_hoogte_m: float = 1.5
+    boom_min_hoogte_m: float = 3.0
+    bouwwerk_min_hoogte_m: float = 2.5
+    # Een kroon is grillig van bovenaf, een dak vlak. Spreiding van de hoogte binnen 1,5 m.
+    kroon_min_ruwheid_m: float = 0.6
+    dak_max_ruwheid_m: float = 0.4
+    # Een haag is smal en lang; een heestervak is een vlek.
+    haag_max_breedte_m: float = 1.5
+    haag_min_lengte_m: float = 4.0
+    haag_max_compactheid: float = 0.35
+    min_oppervlakte_m2: float = 3.0
+    kroon_min_oppervlakte_m2: float = 2.0
+    vereenvoudiging_m: float = 0.25
+
+
+@dataclass
 class SignaleringParameters:
     min_dekkingsgraad: float = 0.55
     lage_dekkingsgraad: float = 0.20
@@ -95,6 +122,7 @@ class Instellingen:
     groen: GroenParameters = field(default_factory=GroenParameters)
     verharding: VerhardingParameters = field(default_factory=VerhardingParameters)
     groenstructuur: GroenstructuurParameters = field(default_factory=GroenstructuurParameters)
+    classificatie: ClassificatieParameters = field(default_factory=ClassificatieParameters)
     signalering: SignaleringParameters = field(default_factory=SignaleringParameters)
     data_map: Path = DATA_MAP
 

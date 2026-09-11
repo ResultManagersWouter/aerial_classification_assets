@@ -1,25 +1,33 @@
-"""Bomen, groenvlakken en verharding uit één opname.
+"""Objecten classificeren uit open bronnen alleen: luchtfoto en hoogtemodel.
 
-Welke opname dat is, kies je: infrarood of kleur. Infrarood staat standaard aan, want NDVI
-scheidt vegetatie van verharding veel scherper dan een kleurindex. Gemeten op het
-Vliegenbos vangt NDVI boven 0,00 ruim 84% van het geregistreerde begroeide terrein terwijl
-maar 7% van de wegdelen meekomt; excess green op kleur bleef daar op enkele procenten
-precisie steken.
+Hier wordt niets gespiegeld aan een gemeentelijke registratie. Wat eruit komt is wat de
+open bronnen laten zien, en dat is precies wat je nodig hebt als je die registratie later
+wilt controleren: een oordeel dat niet al van tevoren naar het antwoord is toegerekend.
 
-De drempel wordt niet geraden maar op de registratie geijkt, zodat elke opname en elke
-jaargang op zijn eigen werkpunt staat in plaats van op een vast getal dat meedrijft met de
-kleurzweem van dat beeld.
+Twee bronnen dragen het:
 
-Daarna valt het maaiveld in drie klassen uiteen:
+    infrarood   NDVI scheidt begroeid van onbegroeid; band 1 is het nabij-infrarood
+    AHN         objecthoogte, het verschil tussen bovenkant en maaiveld
 
-    boom          begroeid, en met de vorm van een kroon
-    groenvlak     begroeid, maar uitgestrekt of langgerekt
-    verharding    het maaiveld dat niet begroeid is
+Hoogte is de beslissende maat. Van bovenaf lijken gazon, heestervak en haag op elkaar:
+alle drie groen, alle drie plat. Ze verschillen in hoogte. En een kale boom in het voorjaar
+heeft geen groensignaal maar wel hoogte, want lidar meet de takken gewoon; daarmee is een
+kroon herkenbaar op een opname waar geen blad aan zit.
 
-Het onderscheid tussen boom en groenvlak zit in de vorm, niet in de kleur, want een kroon
-en een gazon zijn allebei even groen. Een kroon is rond, compact en hooguit een meter of
-negen breed; een berm is smal maar eindeloos lang, en een plantsoen is simpelweg te groot.
-Die drie grenzen staan onder `groenstructuur` in config/parameters.yaml.
+De klassen:
+
+    gras                 begroeid, tot een halve meter
+    heesters             begroeid, tot anderhalve meter
+    haag                 begroeid, smal en langgerekt, tot boven kniehoogte
+    boomkroon            hoog en grillig van vorm
+    dichte_begroeiing    begroeid en hoger dan een heester, maar geen boom of haag
+    verharding           onbegroeid en vlak
+    bouwwerk             hoog en glad van bovenaf
+
+Zonder AHN vervalt het naar drie klassen, begroeid, verharding en onbekend hoog, en dat
+wordt in de uitvoer gemeld. Alle grenzen staan onder `classificatie` in
+config/parameters.yaml, want ze hangen af van wat je beheert: een lage haag in de ene
+gemeente is een hoge bodembedekker in de andere.
 """
 
 from __future__ import annotations
@@ -29,25 +37,23 @@ import logging
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from shapely.geometry.base import BaseGeometry
 
 from luchtfoto_objecten.detectie.kenmerken import exces_groen
+from luchtfoto_objecten.geo_hulp import RD, lege_gdf
 from luchtfoto_objecten.instellingen import Instellingen
-from luchtfoto_objecten.kalibratie import ijk_drempel, referentiemaskers
-from luchtfoto_objecten.modeldetectie import _kenmerken_van, naar_laag, opschonen
+from luchtfoto_objecten.raster import masker_naar_polygonen, polygonen_naar_masker
 
 logger = logging.getLogger(__name__)
 
 BEELDSOORTEN = ("infrarood", "ortho")
+KLASSEN = ("gras", "heesters", "haag", "boomkroon", "dichte_begroeiing", "verharding", "bouwwerk")
 
 
 def haal_beeld(gebied, instellingen: Instellingen, soort: str | None = None):
-    """De opname waarop geclassificeerd wordt, plus de naam van de soort.
-
-    Valt infrarood weg, bijvoorbeeld omdat PDOK het voor dit gebied niet heeft, dan zakken
-    we terug naar kleur en melden dat, zodat je het niet ongemerkt op een ander beeld doet.
-    """
+    """De opname waarop geclassificeerd wordt, plus welke soort het werd."""
     from luchtfoto_objecten.infrarood import haal_infrarood
-    from luchtfoto_objecten.modeldetectie import haal_beelden
+    from luchtfoto_objecten.wmts import LuchtfotoWMTS
 
     soort = soort or instellingen.luchtfoto.beeld
     if soort not in BEELDSOORTEN:
@@ -59,8 +65,11 @@ def haal_beeld(gebied, instellingen: Instellingen, soort: str | None = None):
             return uitsnede, "infrarood"
         logger.warning("Geen infrarood beschikbaar, we classificeren op de kleuropname")
 
-    hoofd, groenbeeld, _, _ = haal_beelden(gebied, instellingen)
-    return groenbeeld, "ortho"
+    wmts = LuchtfotoWMTS(
+        laag=instellingen.luchtfoto.laag, zoom=instellingen.luchtfoto.zoom,
+        cache_map=instellingen.cache_map, max_werkers=instellingen.luchtfoto.max_werkers,
+    )
+    return wmts.haal_uitsnede(gebied.bbox), "ortho"
 
 
 def vegetatiegetal(uitsnede, soort: str) -> np.ndarray:
@@ -72,101 +81,189 @@ def vegetatiegetal(uitsnede, soort: str) -> np.ndarray:
     return exces_groen(uitsnede.afbeelding)
 
 
-def vormkenmerken(vlakken: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """Compactheid en breedte per vlak, de twee maten die kroon van veld scheiden."""
-    tabel = vlakken.copy().reset_index(drop=True)
-    oppervlak = tabel.geometry.area
-    omtrek = tabel.geometry.length.replace(0, np.nan)
-    tabel["oppervlakte_m2"] = oppervlak.round(2)
-    # Een cirkel haalt 1,0; hoe langgerekter of grilliger, hoe lager.
-    tabel["compactheid"] = (4 * np.pi * oppervlak / (omtrek**2)).fillna(0).round(3)
-    # Hydraulische breedte: bij een langgerekte strook ongeveer de breedte ervan.
-    tabel["breedte_m"] = (4 * oppervlak / omtrek).fillna(0).round(2)
-    return tabel
+def maaiveldmasker(uitsnede, objecthoogte, instellingen: Instellingen) -> np.ndarray:
+    """Alles behalve wat hoog en glad is, dus zonder daken.
+
+    Zonder registratie is er geen pandenkaart, maar die is ook niet nodig: een dak is
+    simpelweg hoog en van bovenaf vlak. Dat haalt het AHN er zelf uit.
+    """
+    if objecthoogte is None:
+        return np.ones(uitsnede.afbeelding.shape[:2], dtype=bool)
+    from luchtfoto_objecten.hoogte import hoogteruwheid
+
+    params = instellingen.classificatie
+    ruw = hoogteruwheid(objecthoogte, uitsnede.transform)
+    bouwwerk = (objecthoogte >= params.bouwwerk_min_hoogte_m) & (ruw <= params.dak_max_ruwheid_m)
+    return ~bouwwerk
 
 
-def is_boom(tabel: gpd.GeoDataFrame, instellingen: Instellingen) -> pd.Series:
-    params = instellingen.groenstructuur
-    return (
-        (tabel["breedte_m"] <= params.boom_max_breedte_m)
-        & (tabel["compactheid"] >= params.boom_min_compactheid)
-        & (tabel["oppervlakte_m2"] <= params.boom_max_oppervlakte_m2)
+def deel_in(
+    getal: np.ndarray, objecthoogte: np.ndarray | None, ruwheid: np.ndarray | None,
+    maaiveld: np.ndarray, drempel: float, instellingen: Instellingen,
+) -> dict[str, np.ndarray]:
+    """Per klasse een masker, op hoogte en groensignaal."""
+    params = instellingen.classificatie
+    begroeid = getal > drempel
+
+    if objecthoogte is None:
+        return {
+            "gras": begroeid & maaiveld,
+            "verharding": ~begroeid & maaiveld,
+        }
+
+    laag = objecthoogte < params.gras_max_hoogte_m
+    heesterhoogte = (objecthoogte >= params.gras_max_hoogte_m) & (objecthoogte < params.heester_max_hoogte_m)
+    middenhoog = (objecthoogte >= params.heester_max_hoogte_m) & (objecthoogte < params.boom_min_hoogte_m)
+    hoog = objecthoogte >= params.boom_min_hoogte_m
+
+    # Een kroon is hoog en grillig; een dak is even hoog maar glad. Blad is mooi meegenomen
+    # maar niet vereist, want op de voorjaarsopname is de kroon kaal.
+    grillig = ruwheid > params.kroon_min_ruwheid_m
+    bouwwerk = hoog & ~grillig & ~begroeid
+    boomkroon = hoog & (grillig | begroeid) & ~bouwwerk
+
+    return {
+        "gras": begroeid & laag & maaiveld,
+        "heesters": begroeid & heesterhoogte & maaiveld,
+        "dichte_begroeiing": begroeid & middenhoog & maaiveld,
+        "boomkroon": boomkroon & maaiveld,
+        "verharding": ~begroeid & laag & maaiveld,
+        "bouwwerk": bouwwerk,
+    }
+
+
+def _vormmaten(vlakken: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    oppervlak = vlakken.geometry.area
+    omtrek = vlakken.geometry.length.replace(0, np.nan)
+    vlakken["oppervlakte_m2"] = oppervlak.round(2)
+    vlakken["compactheid"] = (4 * np.pi * oppervlak / (omtrek**2)).fillna(0).round(3)
+    vlakken["breedte_m"] = (4 * oppervlak / omtrek).fillna(0).round(2)
+    vlakken["lengte_m"] = (omtrek / 2).round(1)
+    return vlakken
+
+
+def _splits_hagen(vlakken: gpd.GeoDataFrame, instellingen: Instellingen):
+    """Een haag is smal, lang en recht; een heestervak is een vlek.
+
+    Dat onderscheid zit in de vorm en niet in de hoogte, want ze overlappen in hoogte.
+    """
+    params = instellingen.classificatie
+    if vlakken.empty:
+        return vlakken, vlakken
+    haag = (
+        (vlakken["breedte_m"] <= params.haag_max_breedte_m)
+        & (vlakken["lengte_m"] >= params.haag_min_lengte_m)
+        & (vlakken["compactheid"] <= params.haag_max_compactheid)
     )
+    return vlakken[haag].copy(), vlakken[~haag].copy()
+
+
+def _naar_vlakken(masker, transform, klasse: str, min_opp: float, vereenvoudiging: float, grens) -> gpd.GeoDataFrame:
+    from luchtfoto_objecten.modeldetectie import opschonen
+
+    geometrieen = masker_naar_polygonen(
+        opschonen(masker, transform, min_opp), transform, min_opp, vereenvoudiging
+    )
+    if not geometrieen:
+        return lege_gdf(["klasse", "oppervlakte_m2"])
+    vlakken = gpd.GeoDataFrame({"klasse": [klasse] * len(geometrieen)}, geometry=geometrieen, crs=RD)
+    if grens is not None:
+        vlakken = gpd.clip(vlakken, grens)
+        vlakken = vlakken[~vlakken.geometry.is_empty & vlakken.geometry.notna()]
+        vlakken = vlakken[vlakken.geometry.area >= min_opp]
+    return _vormmaten(vlakken.reset_index(drop=True))
 
 
 def classificeer(
-    gebied, instellingen: Instellingen | None = None, soort: str | None = None
-) -> tuple[dict[str, gpd.GeoDataFrame], pd.DataFrame, object, str]:
-    """Geeft de drie klassen als lagen, een overzichtstabel, de gebruikte uitsnede en de soort."""
-    from luchtfoto_objecten.modeldetectie import haal_beelden
+    gebied, instellingen: Instellingen | None = None, soort: str | None = None,
+    grens: BaseGeometry | None = None, gebruik_hoogte: bool = True,
+) -> tuple[dict[str, gpd.GeoDataFrame], pd.DataFrame, object, dict]:
+    """Classificeert het gebied op beeld en hoogte, zonder registratie erbij.
+
+    Geeft de lagen per klasse, een overzichtstabel, de gebruikte uitsnede, en een verslagje
+    van welke bronnen er daadwerkelijk in zaten.
+    """
+    from luchtfoto_objecten.hoogte import haal_objecthoogte, hoogteruwheid
 
     instellingen = instellingen or Instellingen.laden()
-    _, _, registratie, analysevlak = haal_beelden(gebied, instellingen)
+    params = instellingen.classificatie
     uitsnede, gebruikt = haal_beeld(gebied, instellingen, soort)
-    kenmerken = _kenmerken_van(uitsnede, registratie, analysevlak, instellingen)
+    vorm = uitsnede.afbeelding.shape[:2]
+
+    objecthoogte = None
+    if gebruik_hoogte:
+        objecthoogte = haal_objecthoogte(gebied.bbox, vorm, uitsnede.transform, instellingen.cache_map)
+    ruwheid = hoogteruwheid(objecthoogte, uitsnede.transform) if objecthoogte is not None else None
 
     getal = vegetatiegetal(uitsnede, gebruikt)
-    groen_ref, verhard_ref = referentiemaskers(registratie, kenmerken.vorm, uitsnede.transform, kenmerken.maaiveld)
-    keuze = ijk_drempel(getal, groen_ref, verhard_ref)
-    ondergrens = (
-        instellingen.groen.ndvi_ondergrens if gebruikt == "infrarood" else instellingen.groen.exg_ondergrens
-    )
-    if keuze.bruikbaar and np.isfinite(keuze.drempel):
-        drempel = max(keuze.drempel, ondergrens)
-        logger.info(
-            "Vegetatiedrempel op %s geijkt: %.4f (IoU %.3f, precisie %.3f, recall %.3f, AUC %.3f)%s",
-            gebruikt, keuze.drempel, keuze.iou, keuze.precisie, keuze.recall, keuze.scheidend_vermogen,
-            "" if drempel == keuze.drempel else f", opgetrokken naar de ondergrens {ondergrens:.4f}",
-        )
-    else:
-        drempel = ondergrens
-        logger.warning("Te weinig referentie om te ijken, we gebruiken de ondergrens %.4f", drempel)
+    drempel = params.ndvi_drempel if gebruikt == "infrarood" else instellingen.groen.exg_ondergrens
+    maaiveld = maaiveldmasker(uitsnede, objecthoogte, instellingen)
+    if grens is not None:
+        maaiveld &= polygonen_naar_masker([grens], vorm, uitsnede.transform)
 
-    begroeid = (getal > drempel) & kenmerken.maaiveld
-    verhard = kenmerken.maaiveld & ~begroeid
+    maskers = deel_in(getal, objecthoogte, ruwheid, maaiveld, drempel, instellingen)
 
-    groenvlakken = naar_laag(
-        opschonen(begroeid, uitsnede.transform, instellingen.groen.min_oppervlakte_m2),
-        uitsnede.transform, "begroeid", gebruikt,
-        instellingen.groen.min_oppervlakte_m2, instellingen.groen.vereenvoudiging_m, analysevlak,
-    )
-    verharding = naar_laag(
-        opschonen(verhard, uitsnede.transform, instellingen.verharding.min_oppervlakte_m2),
-        uitsnede.transform, "verharding", gebruikt,
-        instellingen.verharding.min_oppervlakte_m2, instellingen.verharding.vereenvoudiging_m, analysevlak,
-    )
+    lagen: dict[str, gpd.GeoDataFrame] = {}
+    for klasse, masker in maskers.items():
+        min_opp = params.min_oppervlakte_m2 if klasse != "boomkroon" else params.kroon_min_oppervlakte_m2
+        vlakken = _naar_vlakken(masker, uitsnede.transform, klasse, min_opp, params.vereenvoudiging_m, grens)
+        if klasse == "heesters":
+            hagen, heesters = _splits_hagen(vlakken, instellingen)
+            if not hagen.empty:
+                hagen["klasse"] = "haag"
+                lagen["classificatie_haag"] = hagen
+            vlakken = heesters
+        if klasse == "boomkroon" and not vlakken.empty:
+            # Het zwaartepunt van de kroon is de plek van de boom.
+            vlakken["middelpunt_x"] = vlakken.geometry.centroid.x.round(2)
+            vlakken["middelpunt_y"] = vlakken.geometry.centroid.y.round(2)
+        lagen[f"classificatie_{klasse}"] = vlakken
 
-    if groenvlakken.empty:
-        bomen = groenvlakken
-    else:
-        groenvlakken = vormkenmerken(groenvlakken)
-        boomvlak = is_boom(groenvlakken, instellingen)
-        bomen = groenvlakken[boomvlak].copy()
-        bomen["klasse"] = "boom"
-        groenvlakken = groenvlakken[~boomvlak].copy()
-        groenvlakken["klasse"] = "groenvlak"
-        # De stam zit onder het midden van de kroon, dus het zwaartepunt is de plek.
-        bomen["middelpunt_x"] = bomen.geometry.centroid.x.round(2)
-        bomen["middelpunt_y"] = bomen.geometry.centroid.y.round(2)
-
-    lagen = {
-        "classificatie_boom": bomen,
-        "classificatie_groenvlak": groenvlakken,
-        "classificatie_verharding": verharding,
+    bronnen = {
+        "beeld": uitsnede.laag,
+        "beeldsoort": gebruikt,
+        "vegetatiedrempel": round(float(drempel), 4),
+        "hoogtebron": "AHN dsm_05m/dtm_05m" if objecthoogte is not None else "geen",
+        "klassen": "volledig" if objecthoogte is not None else "beperkt, zonder hoogte",
     }
     overzicht = pd.DataFrame([
         {
             "klasse": naam.replace("classificatie_", ""),
-            "beeld": uitsnede.laag,
-            "soort": gebruikt,
-            "drempel": round(float(drempel), 4),
             "vlakken": int(len(laag)),
             "oppervlakte_m2": round(float(laag.geometry.area.sum()), 1) if not laag.empty else 0.0,
-            "aandeel_analysevlak": (
-                round(float(laag.geometry.area.sum()) / analysevlak.area, 3)
-                if not laag.empty and analysevlak.area else 0.0
-            ),
+            "mediane_breedte_m": round(float(laag["breedte_m"].median()), 2) if not laag.empty else 0.0,
         }
-        for naam, laag in lagen.items()
+        for naam, laag in sorted(lagen.items())
     ])
-    return lagen, overzicht, uitsnede, gebruikt
+    return lagen, overzicht, uitsnede, bronnen
+
+
+def classificeer_object(geometrie: BaseGeometry, instellingen: Instellingen | None = None, **opties) -> pd.DataFrame:
+    """Classificeert één object: welke klassen liggen erin en voor hoeveel.
+
+    Handig om een enkel geregistreerd vlak na te lopen zonder een heel gebied te draaien.
+    """
+    from luchtfoto_objecten.gebieden import gebied_uit_bbox
+
+    marge = 5.0
+    xmin, ymin, xmax, ymax = geometrie.bounds
+    gebied = gebied_uit_bbox((xmin - marge, ymin - marge, xmax + marge, ymax + marge), naam="object")
+    lagen, _, _, bronnen = classificeer(gebied, instellingen, grens=geometrie, **opties)
+
+    oppervlak = geometrie.area
+    rijen = []
+    for naam, laag in sorted(lagen.items()):
+        if laag.empty:
+            continue
+        gedeeld = laag.geometry.union_all().intersection(geometrie).area
+        if gedeeld <= 0:
+            continue
+        rijen.append({
+            "klasse": naam.replace("classificatie_", ""),
+            "oppervlakte_m2": round(gedeeld, 2),
+            "aandeel": round(gedeeld / oppervlak, 3) if oppervlak else 0.0,
+        })
+    tabel = pd.DataFrame(rijen).sort_values("aandeel", ascending=False).reset_index(drop=True)
+    for sleutel, waarde in bronnen.items():
+        tabel[sleutel] = waarde
+    return tabel

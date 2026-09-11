@@ -114,6 +114,58 @@ minuten. Kijk daarna in `output/centrum_vergelijking/`: de GeoPackage open je in
 hieronder "Wat eruit komt", en vooral "Beperkingen", want een deel van de signalen is
 ruis met een bekende oorzaak.
 
+## Classificeren op open bronnen alleen
+
+`--alleen-classificatie` doet wat de naam zegt: de openbare ruimte indelen op wat open
+bronnen laten zien, zonder de gemeentelijke registratie erbij. Dat is met opzet, want een
+oordeel dat al naar het antwoord is toegerekend kun je later niet gebruiken om diezelfde
+registratie te controleren.
+
+Twee bronnen dragen het. De infraroodopname geeft NDVI, en dat scheidt begroeid van
+onbegroeid veel scherper dan een kleurindex. Het AHN geeft objecthoogte, het verschil
+tussen `dsm_05m` en `dtm_05m`, en dat is de maat die een foto niet kan geven: van bovenaf
+lijken gazon, heestervak en haag op elkaar, ze verschillen in hoogte.
+
+```bash
+python main.py --gebied noord_noorderpark --alleen-classificatie
+python main.py --gebied noord_noorderpark --alleen-classificatie --beeld ortho
+python main.py --gebied noord_noorderpark --alleen-classificatie --geen-hoogte
+python main.py --object data/aoi/mijn_objecten.geojson
+```
+
+| klasse | hoe herkend |
+|---|---|
+| `gras` | begroeid, tot een halve meter hoog |
+| `heesters` | begroeid, tot anderhalve meter |
+| `haag` | begroeid, smal en langgerekt: tot 1,5 m breed, minstens 4 m lang, lage compactheid |
+| `boomkroon` | hoger dan drie meter en grillig van bovenaf, met het zwaartepunt als plek van de boom |
+| `dichte_begroeiing` | begroeid, tussen heester- en boomhoogte |
+| `verharding` | onbegroeid en vlak |
+| `bouwwerk` | hoog maar glad van bovenaf, dus een dak |
+
+Waarom hoogte het verschil maakt, met cijfers van het Noorderpark. Op beeld alleen kwam de
+boomherkenning niet verder dan 3 tot 9 procent van de geregistreerde stammen: de
+8cm-infrarood is een voorjaarsvlucht met kale bomen, dus een kroon zit niet eens in het
+vegetatiemasker, en waar wel blad hangt smelt de kroon samen met het gras eronder. Met het
+AHN erbij wordt dat **56 procent**, want lidar meet de takken gewoon, blad of niet. En een
+dak is even hoog als een kroon maar veel vlakker, dus de ruwheid van de hoogte scheidt die
+twee zonder dat er een pandenkaart aan te pas komt.
+
+Twee dingen om te weten. De klassen sluiten elkaar uit, dus gras ónder een boomkroon telt
+als kroon; op het Noorderpark zakt de dekking van geregistreerd groen daardoor van 67 naar
+32 procent terwijl er niets verdwenen is. En het AHN had hier dekking op 67 procent van het
+gebied; waar het niets heeft, valt de classificatie terug op het beeld.
+
+Het AHN wordt niet elk jaar ingewonnen, dus in een pas opgeleverde wijk kan het achterlopen
+op de luchtfoto. Met `--geen-hoogte` draai je bewust zonder, en dan blijven alleen begroeid
+en verharding over. Dat wordt ook zo gemeld in de uitvoer, samen met welke bronnen er
+daadwerkelijk in zaten.
+
+Alle grenzen staan onder `classificatie` in `config/parameters.yaml`: de hoogtes per
+klasse, de ruwheid die kroon van dak scheidt, en de vorm die een haag maakt. Pas ze aan op
+wat je beheert, want een lage haag in de ene gemeente is een hoge bodembedekker in de
+andere.
+
 ## Alle commando's op een rij
 
 Eén ingang, `main.py`, en een vlag bepaalt wat je krijgt. Zonder vlag draait de gewone
