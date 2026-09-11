@@ -24,15 +24,23 @@ def bepaal_groenmasker(
     transform: Affine,
     params: GroenParameters,
     uitsluitmasker: np.ndarray | None = None,
+    drempel: float | None = None,
 ) -> np.ndarray:
     """Vegetatie volgens de excess green index.
 
     Werkt alleen op een opname met blad. Op de voorjaarsopname van de 8cm-ortho zijn gras
     en bestrating spectraal vrijwel gelijk, zie bladstand.bepaal_groenbron.
+
+    Geef een drempel mee als die op de registratie geijkt is. Zonder drempel valt hij terug
+    op Otsu, en die kiest stelselmatig te hoog: op de bladopname van Noord 0,062 tegen 0,034
+    geijkt, wat het verschil is tussen een gemist en een gevonden grasveld.
     """
     exg = exces_groen(rgb)
-    drempel = _groendrempel(exg, params.exg_ondergrens)
-    logger.info("Groendrempel op excess green: %.4f", drempel)
+    if drempel is None:
+        drempel = _groendrempel(exg, params.exg_ondergrens)
+        logger.info("Groendrempel via Otsu: %.4f", drempel)
+    else:
+        logger.info("Groendrempel geijkt op de registratie: %.4f", drempel)
 
     masker = exg > drempel
     if uitsluitmasker is not None:
@@ -51,15 +59,17 @@ def detecteer_groen(
     params: GroenParameters,
     uitsluitmasker: np.ndarray | None = None,
     masker: np.ndarray | None = None,
+    drempel: float | None = None,
 ) -> gpd.GeoDataFrame:
     if masker is None:
-        masker = bepaal_groenmasker(rgb, transform, params, uitsluitmasker)
+        masker = bepaal_groenmasker(rgb, transform, params, uitsluitmasker, drempel)
     if not masker.any():
         logger.info("Geen vegetatie gevonden boven de drempel")
         return lege_gdf(KOLOMMEN)
 
     exg = exces_groen(rgb)
-    drempel = _groendrempel(exg, params.exg_ondergrens)
+    if drempel is None:
+        drempel = _groendrempel(exg, params.exg_ondergrens)
     textuur = lokale_standaarddeviatie(grijswaarde(rgb), meters_naar_pixels(params.textuur_venster_m, transform))
     componenten = label(masker)
 
