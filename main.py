@@ -244,6 +244,44 @@ def _schrijf_invoer(uitvoer_map: Path, beeld, invoer: dict) -> None:
     print("Invoerlagen: " + ", ".join(pad.name for pad in geschreven))
 
 
+def _schrijf_jaargangen(uitvoer_map: Path, bronnen: dict) -> None:
+    """Bij meerdere jaargangen ook de indeling per jaargang apart.
+
+    Naast de consensus dus ook wat elk jaar op zichzelf liet zien, in een eigen bestand
+    zodat de hoofd-GeoPackage leesbaar blijft. De laagnamen beginnen met de jaargang.
+    """
+    lagen = bronnen.get("lagen_per_jaargang") or {}
+    if not lagen:
+        return
+    pad = schrijf_geopackage(lagen, uitvoer_map / "jaargangen.gpkg")
+    from luchtfoto_objecten.classificatie import KLASSEN
+
+    def splits(naam: str) -> tuple[str, str]:
+        # Klassenamen kunnen zelf een underscore hebben, dus splitsen op de bekende namen.
+        for klasse in sorted(KLASSEN, key=len, reverse=True):
+            if naam.endswith(f"_{klasse}"):
+                return naam[: -len(klasse) - 1], klasse
+        return naam, ""
+
+    regels = []
+    for naam, laag in sorted(lagen.items()):
+        jaargang, klasse = splits(naam)
+        regels.append({
+            "jaargang": jaargang,
+            "klasse": klasse,
+            "vlakken": int(len(laag)),
+            "oppervlakte_m2": round(float(laag.geometry.area.sum()), 1),
+        })
+    tabel = pd.DataFrame(regels)
+    tabel.to_csv(uitvoer_map / "jaargangen.csv", index=False)
+    print("\nPer jaargang, oppervlakte per klasse:")
+    print(
+        tabel.pivot_table(index="jaargang", columns="klasse", values="oppervlakte_m2", fill_value=0)
+        .round(0).to_string()
+    )
+    print(f"Lagen per jaargang: {pad}")
+
+
 def _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map: Path) -> None:
     """Tien klassenindelingen naast elkaar, om te zien welke grenzen het beste passen."""
     from luchtfoto_objecten.classificatie import sweep_klassen
@@ -349,6 +387,7 @@ def main(argumentenlijst: list[str] | None = None) -> None:
         overzicht.to_csv(uitvoer_map / "classificatie.csv", index=False)
         _schrijf_beeldpakket(uitvoer_map, beeld, bronnen["beeldsoort"])
         _schrijf_invoer(uitvoer_map, beeld, invoer)
+        _schrijf_jaargangen(uitvoer_map, bronnen)
         if argumenten.sweep:
             _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map)
         print(f"\nKlassen: {pad}")

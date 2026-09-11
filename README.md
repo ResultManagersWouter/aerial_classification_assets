@@ -127,11 +127,30 @@ tussen `dsm_05m` en `dtm_05m`, en dat is de maat die een foto niet kan geven: va
 lijken gazon, heestervak en haag op elkaar, ze verschillen in hoogte.
 
 ```bash
+# het volledige commando, met vier infraroodjaargangen en de varianten erbij
+python main.py --gebied noord_noorderpark --alleen-classificatie --jaargangen 4 --sweep
+
+# de losse onderdelen
 python main.py --gebied noord_noorderpark --alleen-classificatie
+python main.py --gebied noord_noorderpark --alleen-classificatie --jaargangen 4
 python main.py --gebied noord_noorderpark --alleen-classificatie --beeld ortho
 python main.py --gebied noord_noorderpark --alleen-classificatie --geen-hoogte
 python main.py --object data/aoi/mijn_objecten.geojson
 ```
+
+Wat er dan in `output/<naam>/` komt:
+
+| bestand | inhoud |
+|---|---|
+| `<naam>.gpkg` | een laag per klasse, plus `groen_totaal` en `verharding_totaal` |
+| `invoer/` | de rasters waar het op rust: beeld, `vegetatiegetal`, `objecthoogte`, `hoogteruwheid`, en bij meerdere jaargangen `zekerheid_jaargangen` |
+| `infrarood.gpkg` | de gebruikte opname apart, om als achtergrond te laden |
+| `classificatie.csv` | oppervlakte en aantal vlakken per klasse |
+| `klassevarianten.gpkg` | met `--sweep`: tien klassenindelingen naast elkaar, plus `klassevarianten.csv` |
+| `jaargangen.gpkg` | met `--jaargangen N`: de indeling per jaargang apart, plus `jaargangen.csv` |
+
+`groen_totaal` is alle vegetatie op het maaiveld, dus zonder de boomkronen: die hangen
+erboven en zouden het maaiveld dubbel tellen.
 
 | klasse | hoe herkend |
 |---|---|
@@ -164,17 +183,80 @@ daadwerkelijk in zaten.
 Alle grenzen staan onder `classificatie` in `config/parameters.yaml`: de hoogtes per
 klasse, de ruwheid die kroon van dak scheidt, en de vorm die een haag maakt. Pas ze aan op
 wat je beheert, want een lage haag in de ene gemeente is een hoge bodembedekker in de
-andere.
+andere. Met `--sweep` erbij tast hij tien van die indelingen af en zet ze naast elkaar in
+`klassevarianten.gpkg`, zodat je op het beeld kunt kiezen welke grens past.
+
+## Meer jaargangen, één oordeel
+
+Eén opname is een momentopname, met alles wat daar toevallig op stond: een geparkeerde
+auto, een natte asfaltplek, de slagschaduw van een gevel. Met `--jaargangen N` draaien de
+laatste N infraroodvluchten mee en telt een pixel pas als begroeid wanneer de meerderheid
+het eens is. Wat er maar in één jaar stond, valt weg.
+
+Twee dingen moeten eerst rechtgetrokken worden, anders vergelijk je onvergelijkbare dingen.
+
+De jaargangen liggen niet exact op elkaar. De orthorectificatie verschilt per vlucht en
+hoge objecten hellen elke keer een andere kant op. Gemeten op het Noorderpark gaat het om
+10 tot 15 centimeter: klein, maar genoeg om de rand van een haag of kroon weg te vreten, en
+dat is precies het omgekeerde van wat een consensus moet doen. Elke jaargang wordt daarom
+eerst met faseconcorrelatie op de nieuwste gelegd.
+
+En elke jaargang heeft zijn eigen kleurzweem, dus dezelfde drempel betekent niet twee keer
+hetzelfde. De mediaan van het gebied wordt verschoven naar die van de nieuwste opname, een
+robuuste correctie die op de zweem reageert en niet op wat er toevallig op die ene foto
+staat.
+
+| jaargang | verschuiving | mediaan NDVI | kleurbijstelling |
+|---|---|---|---|
+| Actueel_orthoHRIR | 0,00 m | -0,0909 | — |
+| 2026_orthoHRIR | 0,10 m | -0,0727 | -0,0182 |
+| 2024_ortho25IR | 0,15 m | -0,0699 | -0,0210 |
+| 2023_ortho25IR | 0,10 m | -0,1260 | +0,0351 |
+
+`Actueel_orthoHRIR` blijkt een kopie van de nieuwste jaargang, met dezelfde mediaan en nul
+verschuiving. Die zou dezelfde opname dubbel laten meetellen, dus jaargangen met dezelfde
+vingerafdruk worden overgeslagen.
+
+Elk vlak krijgt een `zekerheid` mee: het aandeel jaargangen waarin het begroeid was. Filter
+op 1,0 en je houdt over wat in álle jaren groen was; op 0,5 komen de twijfelgevallen mee.
+Dat is de knop om op te sorteren.
+
+Naast de consensus komt ook elke jaargang apart in `jaargangen.gpkg`, met de laagnaam
+vooraan, zodat je kunt zien welk jaar wat liet zien. Op het Noorderpark loopt het gras
+daarin van 22.935 m2 in de nieuwste opname tot 41.138 in 2023, terwijl de boomkroon rond de
+28.130 blijft hangen: die klasse komt uit het AHN en beweegt dus niet mee met de
+jaargangen.
+
+| jaargang | gras | heesters | dichte begroeiing | boomkroon | verharding |
+|---|---|---|---|---|---|
+| Actueel_orthoHRIR | 22.935 | 200 | 328 | 28.128 | 132.486 |
+| 2026_orthoHRIR | 30.931 | 267 | 441 | 28.135 | 124.306 |
+| 2024_ortho25IR | 40.354 | 418 | 711 | 28.137 | 115.831 |
+| 2023_ortho25IR | 41.138 | 453 | 711 | 28.143 | 114.993 |
+
+Dat de oudere 25cm-jaargangen meer gras vinden is geen groei maar resolutie: op een grover
+raster loopt een pixel eerder over de rand van een berm heen. Dat is precies waarom de
+consensus op meerderheid werkt en niet op een optelsom.
+
+Op het Noorderpark dekt de consensus over vier jaargangen 48 procent van het geregistreerde
+groen tegen 33 voor één opname, en vindt 15.678 m2 groen buiten de registratie tegen 5.070.
+Of dat extra een achterlopende registratie is of ruis, is een oordeel op het beeld; daar is
+die `zekerheid` voor. Bomen blijven op 56 procent, zoals het hoort, want die klasse hangt
+aan hoogte en niet aan het vegetatiegetal.
 
 ## Alle commando's op een rij
 
 Eén ingang, `main.py`, en een vlag bepaalt wat je krijgt. Zonder vlag draait de gewone
-analyse. De vlaggen zijn te combineren, behalve `--sweep` en `--jaren`, die alleen hun
-eigen werk doen en daarna stoppen.
+analyse. De meeste vlaggen zijn te combineren; `--object`, `--alleen-classificatie` en
+`--jaren` doen alleen hun eigen werk en stoppen daarna.
 
 | commando | wat het doet | wat je krijgt in `output/<naam>/` |
 |---|---|---|
 | `python main.py --gebied X` | detectie plus vergelijking met de registratie | `X.gpkg` met de signalering, `afwijkingen.csv`, `samenvatting_per_thema.csv` |
+| `... --alleen-classificatie` | indelen op open bronnen, zonder registratie erbij | `X.gpkg` met een laag per klasse plus de totalen, `classificatie.csv`, `invoer/`, `infrarood.gpkg` |
+| `... --alleen-classificatie --jaargangen N` | hetzelfde, maar met N infraroodjaargangen samen | idem, plus een `zekerheid` per vlak en `zekerheid_jaargangen.tif` in `invoer/` |
+| `... --alleen-classificatie --sweep` | tien klassenindelingen om op het beeld te kiezen | `klassevarianten.gpkg` en `klassevarianten.csv` |
+| `python main.py --object bestand.geojson` | alleen deze objecten indelen, geen heel gebied | `objecten_geclassificeerd.csv`, per object en per klasse |
 | `... --modellen` | elk detectiemodel als eigen laag, en een score tegen de BGT | extra lagen `detectie_groen_<model>` en `detectie_verharding_<model>`, plus `modeloverzicht.csv`, `modelvergelijking.csv`, `kenmerkbelang.csv` |
 | `... --bomen` | is het gevonden groen een kroon of maaiveld, geijkt op het bomenregister | laag `groen_boom_of_vlak`, plus `boom_of_vlak.csv` en `boomherkenning_score.csv` |
 | `... --sweep` | tien parameterinstellingen per klasse, om zelf te beoordelen | vier losse bestanden: `groen.gpkg`, `verharding.gpkg`, `bomen.gpkg`, `infrarood.gpkg`, elk met `sweep_*.csv` |
@@ -190,8 +272,15 @@ hetzelfde mee:
 | `--bbox` | xmin ymin xmax ymax, zoals dit project | `--bbox 121641 486408 122215 487051` |
 | `--grens` | bestand met een polygon, ook niet-rechthoekig | `--grens data/aoi/buurt.geojson` |
 
-Verder zijn er `--naam` voor de uitvoermap, en `--zoom` voor de resolutie (15 is 10,5 cm
-per pixel, 16 is 5,25 cm en viermaal zoveel tegels).
+Verder zijn er deze schakelaars:
+
+| vlag | wat het doet |
+|---|---|
+| `--naam` | naam van de map onder `output/`, standaard de gebiedsnaam |
+| `--zoom` | 15 is 10,5 cm per pixel, 16 is 5,25 cm en viermaal zoveel tegels |
+| `--beeld infrarood\|ortho` | waarop geclassificeerd wordt, standaard infrarood |
+| `--jaargangen N` | N infraroodjaargangen samen, standaard 1 |
+| `--geen-hoogte` | zonder AHN, voor gebieden waar het hoogtemodel achterloopt op de foto |
 
 In elke GeoPackage zit ook de luchtfoto waarop de classificatie rust, als rasterlaag
 `luchtfoto_<laagnaam>`. Je opent dus één bestand in QGIS en hebt beeld en vlakken bij

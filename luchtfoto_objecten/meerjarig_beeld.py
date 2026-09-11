@@ -119,12 +119,13 @@ def _vingerafdruk(vlak: np.ndarray) -> float:
 def consensus(
     gebied, instellingen: Instellingen, doelvorm, doeltransform, drempel: float,
     aantal_jaren: int = 3, binnen: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray, list[dict]] | None:
+) -> tuple[np.ndarray, np.ndarray, list[dict], dict[str, np.ndarray]] | None:
     """Hoe vaak is elke pixel begroeid, over de laatste jaargangen.
 
-    Geeft het aantal jaren dat een pixel boven de drempel uitkwam, de zekerheid als
-    aandeel daarvan, en per jaargang een regeltje met wat er gemeten is. Geeft None terug
-    als er niet meer dan één bruikbare jaargang is.
+    Geeft het aantal jaren dat een pixel boven de drempel uitkwam, de zekerheid als aandeel
+    daarvan, per jaargang een regeltje met wat er gemeten is, en het vegetatiemasker per
+    jaargang apart, zodat je ook per jaar kunt kijken. Geeft None terug als er niet meer dan
+    één bruikbare jaargang is.
     """
     from luchtfoto_objecten.infrarood import ndvi
 
@@ -140,6 +141,7 @@ def consensus(
     tellers = np.zeros(doelvorm, dtype=np.int16)
     gemeten = 0
     verslag: list[dict] = []
+    per_jaargang: dict[str, np.ndarray] = {}
 
     for laag in lagen:
         try:
@@ -175,6 +177,7 @@ def consensus(
 
         tellers += begroeid.astype(np.int16)
         gemeten += 1
+        per_jaargang[laag] = begroeid
         afstand_m = float(np.hypot(*verplaatsing) * pixelgrootte)
         verslag.append({
             "laag": laag,
@@ -193,4 +196,4 @@ def consensus(
     if len(verslag) < 2:
         return None
     zekerheid = tellers.astype(np.float32) / max(gemeten, 1)
-    return tellers, zekerheid, verslag
+    return tellers, zekerheid, verslag, per_jaargang

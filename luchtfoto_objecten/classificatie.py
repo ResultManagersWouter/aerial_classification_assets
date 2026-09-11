@@ -219,6 +219,7 @@ def classificeer(
     # jaar groen is, is meestal een auto, een schaduw of een natte plek.
     zekerheid = None
     jaarverslag: list[dict] = []
+    maskers_per_jaargang: dict = {}
     if jaargangen > 1 and gebruikt == "infrarood":
         from luchtfoto_objecten.meerjarig_beeld import consensus
 
@@ -226,7 +227,7 @@ def classificeer(
             gebied, instellingen, vorm, uitsnede.transform, drempel, jaargangen, binnen=maaiveld
         )
         if uitkomst is not None:
-            tellers, zekerheid, jaarverslag = uitkomst
+            tellers, zekerheid, jaarverslag, maskers_per_jaargang = uitkomst
             # Meerderheid van de jaargangen, zodat één afwijkend jaar de uitspraak niet kantelt.
             nodig = max(1, (len(jaarverslag) + 1) // 2)
             getal = np.where(tellers >= nodig, max(drempel + 0.01, 1.0), drempel - 1.0).astype(np.float32)
@@ -238,6 +239,7 @@ def classificeer(
     maskers = deel_in(getal, objecthoogte, ruwheid, maaiveld, drempel, instellingen)
 
     lagen: dict[str, gpd.GeoDataFrame] = {}
+    lagen_per_jaargang: dict[str, gpd.GeoDataFrame] = {}
     for klasse, masker in maskers.items():
         min_opp = params.min_oppervlakte_m2 if klasse != "boomkroon" else params.kroon_min_oppervlakte_m2
         vlakken = _naar_vlakken(masker, uitsnede.transform, klasse, min_opp, params.vereenvoudiging_m, grens)
@@ -274,12 +276,29 @@ def classificeer(
         }
         for naam, laag in sorted(lagen.items())
     ])
+    if maskers_per_jaargang:
+        bronnen_jaar = {}
+        for laagnaam, masker in maskers_per_jaargang.items():
+            for klasse, deelmasker in deel_in(
+                np.where(masker, drempel + 1.0, drempel - 1.0).astype(np.float32),
+                objecthoogte, ruwheid, maaiveld, drempel, instellingen,
+            ).items():
+                vlakken = _naar_vlakken(
+                    deelmasker, uitsnede.transform, klasse,
+                    params.min_oppervlakte_m2 if klasse != "boomkroon" else params.kroon_min_oppervlakte_m2,
+                    params.vereenvoudiging_m, grens,
+                )
+                if not vlakken.empty:
+                    bronnen_jaar[f"{laagnaam}_{klasse}"] = vlakken
+        lagen_per_jaargang.update(bronnen_jaar)
+
     invoer = {"vegetatiegetal": getal}
     if zekerheid is not None:
         invoer["zekerheid_jaargangen"] = zekerheid
     if objecthoogte is not None:
         invoer["objecthoogte"] = objecthoogte
         invoer["hoogteruwheid"] = ruwheid
+    bronnen["lagen_per_jaargang"] = lagen_per_jaargang
     return lagen, overzicht, uitsnede, bronnen, invoer
 
 
