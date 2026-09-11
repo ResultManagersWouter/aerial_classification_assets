@@ -171,8 +171,15 @@ dak is even hoog als een kroon maar veel vlakker, dus de ruwheid van de hoogte s
 twee zonder dat er een pandenkaart aan te pas komt.
 
 Gebouwen gaan er op twee manieren uit, want groen op een dak is een dure fout. Het AHN
-haalt ze eruit op hoogte en vlakheid, en de BAG haalt ze eruit op hun grondvlak, met een
-meter buffer voor overstekende daken. Dat tweede slot is nodig gebleken: onder een pand
+haalt ze eruit op hoogte en vlakheid, en de BGT haalt ze eruit op hun grondvlak, met een
+meter buffer voor overstekende daken.
+
+De BGT en niet de BAG, want de BGT heeft `relatieve_hoogteligging` en dat veld doet er
+hier toe. Een bouwwerk op -1 ligt ónder het maaiveld en telt niet mee: boven een
+parkeergarage of een metrostation ligt gewoon grond, vaak met gras erop, en dat als gebouw
+wegstrepen zou echt groen laten verdwijnen. Op de Dam gaat het om drie zulke panden. De
+bouwwerklaag in de uitvoer krijgt het grondvlak zonder de buffer, anders staat er een rand
+van een meter omheen die er niet is. Dat tweede slot is nodig gebleken: onder een pand
 meet het AHN geen maaiveld, dus het DTM zit daar vol gaten. Bij de ArenA is 45 procent van
 het maaiveldmodel leeg, precies waar de bebouwing staat, en die gaten worden nu opgevuld
 vanaf de rand in plaats van op nul gezet. Zonder die twee ingrepen belandde een dak op

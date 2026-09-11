@@ -81,32 +81,43 @@ def vegetatiegetal(uitsnede, soort: str) -> np.ndarray:
     return exces_groen(uitsnede.afbeelding)
 
 
-def maaiveldmasker(uitsnede, objecthoogte, instellingen: Instellingen, bbox=None) -> np.ndarray:
-    """Het maaiveld: alles behalve gebouwen.
+def maaiveldmasker(uitsnede, objecthoogte, instellingen: Instellingen, bbox=None):
+    """Het maaiveld, plus apart wat er als bouwwerk uit gaat.
 
     Twee sloten op dezelfde deur, want groen op een dak is een dure fout. Het AHN haalt
-    gebouwen eruit op hoogte en vlakheid, en de BAG haalt ze eruit op hun grondvlak. Dat
+    gebouwen eruit op hoogte en vlakheid, en de BGT haalt ze eruit op hun grondvlak. Dat
     tweede is nodig omdat het AHN onder een pand geen maaiveld meet: daar zitten gaten in
     het DTM, en zonder correctie zou een dak op maaiveldhoogte belanden.
+
+    Ondergrondse bouwwerken tellen niet mee. Boven een parkeergarage ligt gewoon maaiveld,
+    vaak met gras erop, en dat zou anders als gebouw verdwijnen.
     """
     from luchtfoto_objecten.hoogte import hoogteruwheid
 
     vorm = uitsnede.afbeelding.shape[:2]
     params = instellingen.classificatie
     maaiveld = np.ones(vorm, dtype=bool)
+    bouwwerk = np.zeros(vorm, dtype=bool)
 
     if objecthoogte is not None:
         ruw = hoogteruwheid(objecthoogte, uitsnede.transform)
-        maaiveld &= ~((objecthoogte >= params.bouwwerk_min_hoogte_m) & (ruw <= params.dak_max_ruwheid_m))
+        hoog_en_vlak = (objecthoogte >= params.bouwwerk_min_hoogte_m) & (ruw <= params.dak_max_ruwheid_m)
+        maaiveld &= ~hoog_en_vlak
+        bouwwerk |= hoog_en_vlak
 
-    if bbox is not None and params.gebruik_bag:
-        from luchtfoto_objecten.bag import pandmasker
+    if bbox is not None and params.gebruik_bgt_bouwwerken:
+        from luchtfoto_objecten.bouwwerken import bouwwerkmaskers
 
-        panden = pandmasker(bbox, vorm, uitsnede.transform, instellingen.cache_map, params.pandbuffer_m)
-        if panden.any():
-            logger.info("BAG-panden dekken %.0f%% van het gebied, die gaan eruit", 100 * panden.mean())
-            maaiveld &= ~panden
-    return maaiveld
+        grondvlak, ruim = bouwwerkmaskers(
+            bbox, vorm, uitsnede.transform, instellingen.cache_map, params.pandbuffer_m
+        )
+        if ruim.any():
+            logger.info("BGT-bouwwerken dekken %.0f%% van het gebied, die gaan eruit", 100 * ruim.mean())
+            maaiveld &= ~ruim
+            # De laag zelf krijgt het grondvlak, niet de buffer: anders staat er een rand
+            # van een meter omheen die er in werkelijkheid niet is.
+            bouwwerk |= grondvlak
+    return maaiveld, bouwwerk & ~maaiveld
 
 
 def deel_in(
@@ -140,9 +151,7 @@ def deel_in(
         "dichte_begroeiing": begroeid & middenhoog & maaiveld,
         "boomkroon": boomkroon & maaiveld,
         "verharding": ~begroeid & laag & maaiveld,
-        # Alles wat als gebouw uit het maaiveld is gehaald, of dat nu via hoogte of via de
-        # BAG ging, komt hier als eigen klasse terug.
-        "bouwwerk": ~maaiveld,
+        "bouwwerk": bouwwerk,
     }
 
 
@@ -225,7 +234,7 @@ def classificeer(
 
     getal = vegetatiegetal(uitsnede, gebruikt)
     drempel = params.ndvi_drempel if gebruikt == "infrarood" else instellingen.groen.exg_ondergrens
-    maaiveld = maaiveldmasker(uitsnede, objecthoogte, instellingen, gebied.bbox)
+    maaiveld, bouwwerkvlak = maaiveldmasker(uitsnede, objecthoogte, instellingen, gebied.bbox)
     if grens is not None:
         maaiveld &= polygonen_naar_masker([grens], vorm, uitsnede.transform)
 
@@ -251,6 +260,7 @@ def classificeer(
             )
 
     maskers = deel_in(getal, objecthoogte, ruwheid, maaiveld, drempel, instellingen)
+    maskers["bouwwerk"] = bouwwerkvlak
 
     lagen: dict[str, gpd.GeoDataFrame] = {}
     lagen_per_jaargang: dict[str, gpd.GeoDataFrame] = {}
