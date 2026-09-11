@@ -127,6 +127,7 @@ python main.py --grens data/aoi/buurt.geojson --naam buurt
 python main.py --gebied noord_vliegenbos          # een gebied uit config/gebieden.yaml
 python main.py --gebied noord_vliegenbos --modellen   # elk model als eigen laag
 python main.py --gebied noord_noorderpark --bomen     # boomkroon of groenvlak
+python main.py --gebied noord_vliegenbos --sweep      # tien instellingen per klasse
 ```
 
 Let op de volgorde van de coördinaten. QGIS toont een extent als xmin, xmax, ymin, ymax en
@@ -275,6 +276,45 @@ grootste pieken in het histogram, en in een gebied dat vooral groen is liggen di
 pieken allebei ín het groen: schaduwkroon tegen zonnige kroon. De drempel komt dan op
 0,100 terwijl de ondergrens 0,035 is, en alles wat donkerder groen is valt af. Het helpt
 niet om Otsu alleen op het maaiveld te doen, dat werd hier zelfs 0,109.
+
+## Instellingen uitproberen
+
+`--sweep` draait tien instellingen per klasse en zet ze in drie aparte GeoPackages, zodat
+je er in QGIS met de luchtfoto ernaast doorheen kunt lopen:
+
+    output/<gebied>/groen.gpkg        tien manieren om vegetatie te vinden
+    output/<gebied>/verharding.gpkg   tien manieren om verharding te vinden
+    output/<gebied>/bomen.gpkg        tien manieren om kroon van maaiveld te scheiden
+
+De lagen zijn genummerd zodat ze op volgorde staan, de naam zegt wat er anders is, en
+naast elk bestand staat een `sweep_*.csv` met de instelling en de opbrengst. Alle
+varianten krijgen dezelfde nabewerking en hetzelfde analysevlak, dus wat je ziet is het
+verschil van de parameter.
+
+Op het Vliegenbos loopt groen van 45.995 m2 (Otsu op het maaiveld) tot 138.847 m2 (vaste
+drempel 0.020), op een analysevlak van 145.727 m2. Verharding loopt van 80.336 tot 144.722
+m2, en de kroon van 3.404 tot 46.313 m2. Er valt dus genoeg te kiezen, en juist daarom is
+het beeld de scheidsrechter en niet een getal.
+
+## Groen op het maaiveld tegenover de kroon
+
+De groendetectie is vooral goed in bomen, want een kroon is het felste groen op de foto.
+Een grasveld met bomen erop komt er daardoor uit als een verzameling kronen in plaats van
+als het grasveld dat het is.
+
+De twee opnamen lossen dat samen op. De zomeropname laat zien waar blad hangt. De
+8cm-ortho is in het vroege voorjaar gevlogen met kale bomen en laat dus de grond ónder die
+kroon zien, dus de verhardingsdetectie daarop vertelt of die ondergrond hard of zacht is.
+Gras onder een bomenrij is in de zomer onzichtbaar maar in het voorjaar gewoon te zien.
+
+Dat levert twee lagen op die elkaar mogen overlappen, want zo is het ook: de kroon hangt
+boven de grond.
+
+- `detectie_boomkroon`, groen op de zomerfoto met de ruwe textuur van blad en takken
+- `detectie_groenstrook`, begroeid maaiveld, ook waar een kroon eroverheen hangt
+
+Het groensignaal is leidend, de onverharde ondergrond telt mee als steun en ruwe textuur
+pleit ertegen. De gewichten staan onder `groenstructuur` in `config/parameters.yaml`.
 
 ## Boomkroon of groenvlak
 

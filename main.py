@@ -88,6 +88,10 @@ def bouw_parser() -> argparse.ArgumentParser:
         "--bomen", action="store_true",
         help="onderzoek of het gevonden groen een boomkroon is of echt groen maaiveld",
     )
+    parser.add_argument(
+        "--sweep", action="store_true",
+        help="tien parameterinstellingen per klasse, in aparte GeoPackages om te beoordelen",
+    )
     return parser
 
 
@@ -160,6 +164,15 @@ def main(argumentenlijst: list[str] | None = None) -> None:
     uitvoer_map = Path("output") / naam
     uitvoer_map.mkdir(parents=True, exist_ok=True)
     print(f"Analysegebied: {gebied}, grensvlak {grens.area:.0f} m2")
+
+    if argumenten.sweep:
+        from luchtfoto_objecten.sweep import voer_sweep_uit
+
+        for naam, tabel in voer_sweep_uit(gebied, instellingen, uitvoer_map).items():
+            print(f"\n{naam}.gpkg:")
+            print(tabel.to_string(index=False))
+        print(f"\nDrie GeoPackages in {uitvoer_map}/, open ze los in QGIS.")
+        return
 
     resultaat = voer_analyse_uit(
         gebied, instellingen=instellingen, uitvoer_map=uitvoer_map, schrijf_bestanden=False

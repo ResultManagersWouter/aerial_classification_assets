@@ -39,6 +39,28 @@ class VerhardingParameters:
 
 
 @dataclass
+class GroenstructuurParameters:
+    """Scheidt boomkronen van groen op het maaiveld.
+
+    De zomeropname laat zien waar blad hangt, de 8cm-voorjaarsopname is met kale bomen
+    gevlogen en laat dus de grond onder die kroon zien. Wat daar niet verhard is, is
+    vrijwel altijd gras of beplanting, ook als er een boom boven staat.
+
+    Het groensignaal is leidend, de onverharde ondergrond telt mee als steun en ruwe
+    textuur pleit juist voor een kroon. Met de gewichten kun je die afweging verschuiven.
+    """
+
+    gewicht_groen: float = 1.0
+    gewicht_onverhard: float = 0.5     # steun, niet leidend
+    gewicht_ruw: float = 0.75          # ruwe textuur pleit tegen een groenstrook
+    drempel: float = 0.7               # hierboven telt een pixel als groenstrook
+    textuurdrempel: float = 0.0        # 0 = bepaal met Otsu binnen het groen
+    kroon_min_oppervlakte_m2: float = 2.0
+    strook_min_oppervlakte_m2: float = 5.0
+    vereenvoudiging_m: float = 0.25
+
+
+@dataclass
 class SignaleringParameters:
     min_dekkingsgraad: float = 0.55
     lage_dekkingsgraad: float = 0.20
@@ -56,6 +78,7 @@ class Instellingen:
     luchtfoto: LuchtfotoParameters = field(default_factory=LuchtfotoParameters)
     groen: GroenParameters = field(default_factory=GroenParameters)
     verharding: VerhardingParameters = field(default_factory=VerhardingParameters)
+    groenstructuur: GroenstructuurParameters = field(default_factory=GroenstructuurParameters)
     signalering: SignaleringParameters = field(default_factory=SignaleringParameters)
     data_map: Path = DATA_MAP
 

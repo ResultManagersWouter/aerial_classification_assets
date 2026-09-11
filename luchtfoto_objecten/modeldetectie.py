@@ -314,16 +314,38 @@ def detectielagen(
         verharding_kenmerken,
         _labelmasker(registratie, ("wegdelen", "onbegroeideterreindelen"), verharding_kenmerken),
     )
+    verhardingsmaskers: dict[str, np.ndarray] = {}
     for model, masker in maskers.items():
         schoon = opschonen(
             masker & verharding_kenmerken.maaiveld, verharding_kenmerken.transform,
             instellingen.verharding.min_oppervlakte_m2,
         )
+        verhardingsmaskers[model] = schoon
         lagen[f"detectie_verharding_{model}"], regel = _laag_en_regel(
             schoon, verharding_kenmerken, "verharding", model, instellingen.verharding.min_oppervlakte_m2,
             instellingen.verharding.vereenvoudiging_m, analysevlak, hoofd.laag,
         )
         overzicht.append(regel)
+
+    # Kroon en maaiveld scheiden. De verharding komt van de voorjaarsopname, want die is
+    # met kale bomen gevlogen en laat dus de grond onder de zomerse kroon zien.
+    from luchtfoto_objecten.groenstructuur import bouw_lagen
+
+    verhard_eronder = _naar_ander_raster(
+        verhardingsmaskers.get("regels"), verharding_kenmerken, groen_kenmerken
+    )
+    if verhard_eronder is None:
+        verhard_eronder = np.zeros(groen_kenmerken.vorm, dtype=bool)
+    structuurlagen, structuuroverzicht = bouw_lagen(
+        groen_kenmerken, groenmaskers["hsv_groen"], verhard_eronder, analysevlak, instellingen
+    )
+    lagen.update(structuurlagen)
+    for regel in structuuroverzicht.to_dict("records"):
+        overzicht.append({
+            "klasse": regel["laag"].replace("detectie_", ""), "model": "groenstructuur",
+            "opname": f"{groenbeeld.laag} + {hoofd.laag}", "vlakken": regel["vlakken"],
+            "oppervlakte_m2": regel["oppervlakte_m2"], "aandeel_analysevlak": regel["aandeel_analysevlak"],
+        })
 
     return lagen, pd.DataFrame(overzicht)
 
