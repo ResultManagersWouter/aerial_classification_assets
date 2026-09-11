@@ -173,7 +173,7 @@ def _classificeer_en_toon(gebied, instellingen, argumenten, grens):
     """Classificeert op open bronnen alleen, en laat zien waar het op rust."""
     from luchtfoto_objecten.classificatie import classificeer
 
-    klassen, overzicht, beeld, bronnen = classificeer(
+    klassen, overzicht, beeld, bronnen, invoer = classificeer(
         gebied, instellingen, grens=grens, gebruik_hoogte=not argumenten.geen_hoogte
     )
     print(f"\nClassificatie op open bronnen: {bronnen['beeld']} ({bronnen['beeldsoort']}), "
@@ -181,7 +181,7 @@ def _classificeer_en_toon(gebied, instellingen, argumenten, grens):
     if bronnen["klassen"] != "volledig":
         print("Let op: zonder hoogte vallen heesters, hagen en boomkronen weg.")
     print(overzicht.to_string(index=False))
-    return klassen, overzicht, beeld, bronnen
+    return klassen, overzicht, beeld, bronnen, invoer
 
 
 def _classificeer_objecten(argumenten, instellingen, uitvoer_map: Path) -> None:
@@ -214,6 +214,43 @@ def _classificeer_objecten(argumenten, instellingen, uitvoer_map: Path) -> None:
     pad = uitvoer_map / "objecten_geclassificeerd.csv"
     resultaat.to_csv(pad, index=False)
     print(f"\nPer object en per klasse weggeschreven: {pad}")
+
+
+def _schrijf_invoer(uitvoer_map: Path, beeld, invoer: dict) -> None:
+    """De rasters waarop de classificatie rust, als GeoTIFF ernaast.
+
+    Niet alleen de foto dus, maar ook wat eruit is afgeleid: het vegetatiegetal en de
+    objecthoogte. Daarmee kun je in QGIS een pixel aanwijzen en zien waarom hij in die
+    klasse viel. GeoTIFF omdat dit kommagetallen zijn, en die passen niet in de
+    beeldtegels van een GeoPackage.
+    """
+    from luchtfoto_objecten.raster import schrijf_geotiff
+
+    invoermap = uitvoer_map / "invoer"
+    invoermap.mkdir(parents=True, exist_ok=True)
+    geschreven = [schrijf_geotiff(invoermap / f"beeld_{beeld.laag}.tif", beeld.afbeelding, beeld.transform)]
+    for naam, vlak in invoer.items():
+        geschreven.append(
+            schrijf_geotiff(invoermap / f"{naam}.tif", vlak.astype("float32"), beeld.transform)
+        )
+    print("Invoerlagen: " + ", ".join(pad.name for pad in geschreven))
+
+
+def _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map: Path) -> None:
+    """Tien klassenindelingen naast elkaar, om te zien welke grenzen het beste passen."""
+    from luchtfoto_objecten.classificatie import sweep_klassen
+
+    lagen, overzicht = sweep_klassen(
+        gebied, instellingen, grens=grens, gebruik_hoogte=not argumenten.geen_hoogte
+    )
+    if not lagen:
+        return
+    pad = schrijf_geopackage(lagen, uitvoer_map / "klassevarianten.gpkg")
+    overzicht.to_csv(uitvoer_map / "klassevarianten.csv", index=False)
+    print("\nKlassengrenzen afgetast, oppervlakte per klasse per variant:")
+    draai = overzicht.pivot_table(index=["variant", "instelling"], columns="klasse", values="oppervlakte_m2", fill_value=0)
+    print(draai.round(0).to_string())
+    print(f"\nVarianten: {pad}")
 
 
 def _schrijf_beeldpakket(uitvoer_map: Path, beeld, soort: str) -> None:
@@ -297,10 +334,15 @@ def main(argumentenlijst: list[str] | None = None) -> None:
     print(f"Analysegebied: {gebied}, grensvlak {grens.area:.0f} m2")
 
     if argumenten.alleen_classificatie:
-        klassen, overzicht, beeld, bronnen = _classificeer_en_toon(gebied, instellingen, argumenten, grens)
+        klassen, overzicht, beeld, bronnen, invoer = _classificeer_en_toon(
+            gebied, instellingen, argumenten, grens
+        )
         pad = schrijf_geopackage({n: l for n, l in klassen.items() if not l.empty}, uitvoer_map / f"{naam}.gpkg")
         overzicht.to_csv(uitvoer_map / "classificatie.csv", index=False)
         _schrijf_beeldpakket(uitvoer_map, beeld, bronnen["beeldsoort"])
+        _schrijf_invoer(uitvoer_map, beeld, invoer)
+        if argumenten.sweep:
+            _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map)
         print(f"\nKlassen: {pad}")
         return
 
@@ -351,7 +393,9 @@ def main(argumentenlijst: list[str] | None = None) -> None:
 
     afwijkend = toon_afwijkingen(lagen["signaleringen"], lagen["witte_vlekken"])
 
-    klassen, klasseoverzicht, beeld, bronnen = _classificeer_en_toon(gebied, instellingen, argumenten, grens)
+    klassen, klasseoverzicht, beeld, bronnen, invoer = _classificeer_en_toon(
+        gebied, instellingen, argumenten, grens
+    )
     lagen.update({naam: knip_op_grens(laag, grens) for naam, laag in klassen.items()})
     klasseoverzicht.to_csv(uitvoer_map / "classificatie.csv", index=False)
     beeldsoort = bronnen["beeldsoort"]

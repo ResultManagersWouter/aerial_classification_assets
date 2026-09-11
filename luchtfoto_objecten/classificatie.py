@@ -177,11 +177,12 @@ def _naar_vlakken(masker, transform, klasse: str, min_opp: float, vereenvoudigin
 def classificeer(
     gebied, instellingen: Instellingen | None = None, soort: str | None = None,
     grens: BaseGeometry | None = None, gebruik_hoogte: bool = True,
-) -> tuple[dict[str, gpd.GeoDataFrame], pd.DataFrame, object, dict]:
+) -> tuple[dict[str, gpd.GeoDataFrame], pd.DataFrame, object, dict, dict]:
     """Classificeert het gebied op beeld en hoogte, zonder registratie erbij.
 
-    Geeft de lagen per klasse, een overzichtstabel, de gebruikte uitsnede, en een verslagje
-    van welke bronnen er daadwerkelijk in zaten.
+    Geeft de lagen per klasse, een overzichtstabel, de gebruikte uitsnede, een verslagje van
+    welke bronnen erin zaten, en de invoerrasters zelf, zodat je kunt narekenen waar een
+    klasse vandaan komt.
     """
     from luchtfoto_objecten.hoogte import haal_objecthoogte, hoogteruwheid
 
@@ -219,6 +220,7 @@ def classificeer(
             vlakken["middelpunt_y"] = vlakken.geometry.centroid.y.round(2)
         lagen[f"classificatie_{klasse}"] = vlakken
 
+    lagen = voeg_totalen_toe(lagen)
     bronnen = {
         "beeld": uitsnede.laag,
         "beeldsoort": gebruikt,
@@ -235,7 +237,54 @@ def classificeer(
         }
         for naam, laag in sorted(lagen.items())
     ])
-    return lagen, overzicht, uitsnede, bronnen
+    invoer = {"vegetatiegetal": getal}
+    if objecthoogte is not None:
+        invoer["objecthoogte"] = objecthoogte
+        invoer["hoogteruwheid"] = ruwheid
+    return lagen, overzicht, uitsnede, bronnen, invoer
+
+
+GROENKLASSEN = ("gras", "heesters", "haag", "dichte_begroeiing")
+
+
+def voeg_totalen_toe(lagen: dict[str, gpd.GeoDataFrame]) -> dict[str, gpd.GeoDataFrame]:
+    """Eén laag groen en één laag verharding, om snel op oppervlak te kunnen kijken.
+
+    Het groentotaal is vegetatie op het maaiveld, dus zonder de boomkronen: die hangen
+    erboven en zouden het maaiveld dubbel tellen.
+    """
+    groen = [lagen[f"classificatie_{k}"] for k in GROENKLASSEN if not lagen.get(f"classificatie_{k}", gpd.GeoDataFrame()).empty]
+    if groen:
+        totaal = gpd.GeoDataFrame(pd.concat(groen, ignore_index=True), geometry="geometry", crs=groen[0].crs)
+        totaal["klasse"] = "groen_totaal"
+        lagen["classificatie_groen_totaal"] = totaal
+
+    verharding = lagen.get("classificatie_verharding")
+    if verharding is not None and not verharding.empty:
+        totaal = verharding.copy()
+        totaal["klasse"] = "verharding_totaal"
+        lagen["classificatie_verharding_totaal"] = totaal
+    return lagen
+
+
+def varianten() -> list[tuple[str, str, dict]]:
+    """Tien instellingen om de klassengrenzen mee af te tasten.
+
+    De eerste is de standaard. Daarna verschuift telkens één grens, zodat je kunt zien wat
+    die grens doet zonder dat er iets anders meebeweegt.
+    """
+    return [
+        ("01_standaard", "NDVI 0.05, gras tot 0.5 m, heester tot 1.5 m, boom vanaf 3 m", {}),
+        ("02_ndvi_ruim_002", "NDVI-drempel 0.02, meer vegetatie", {"ndvi_drempel": 0.02}),
+        ("03_ndvi_streng_010", "NDVI-drempel 0.10, minder vegetatie", {"ndvi_drempel": 0.10}),
+        ("04_gras_tot_030", "gras tot 0.3 m, meer telt als heester", {"gras_max_hoogte_m": 0.3}),
+        ("05_gras_tot_080", "gras tot 0.8 m, minder telt als heester", {"gras_max_hoogte_m": 0.8}),
+        ("06_heester_tot_100", "heester tot 1.0 m", {"heester_max_hoogte_m": 1.0}),
+        ("07_heester_tot_250", "heester tot 2.5 m", {"heester_max_hoogte_m": 2.5}),
+        ("08_boom_vanaf_200", "boom vanaf 2 m, meer kronen", {"boom_min_hoogte_m": 2.0}),
+        ("09_boom_vanaf_500", "boom vanaf 5 m, alleen forse bomen", {"boom_min_hoogte_m": 5.0}),
+        ("10_kroon_ruwer_100", "kroon pas bij ruwheid 1.0 m, strenger tegen daken", {"kroon_min_ruwheid_m": 1.0}),
+    ]
 
 
 def classificeer_object(geometrie: BaseGeometry, instellingen: Instellingen | None = None, **opties) -> pd.DataFrame:
@@ -248,7 +297,7 @@ def classificeer_object(geometrie: BaseGeometry, instellingen: Instellingen | No
     marge = 5.0
     xmin, ymin, xmax, ymax = geometrie.bounds
     gebied = gebied_uit_bbox((xmin - marge, ymin - marge, xmax + marge, ymax + marge), naam="object")
-    lagen, _, _, bronnen = classificeer(gebied, instellingen, grens=geometrie, **opties)
+    lagen, _, _, bronnen, _ = classificeer(gebied, instellingen, grens=geometrie, **opties)
 
     oppervlak = geometrie.area
     rijen = []
@@ -267,3 +316,32 @@ def classificeer_object(geometrie: BaseGeometry, instellingen: Instellingen | No
     for sleutel, waarde in bronnen.items():
         tabel[sleutel] = waarde
     return tabel
+
+
+def sweep_klassen(gebied, instellingen: Instellingen | None = None, grens=None, gebruik_hoogte: bool = True):
+    """Draait de tien instellingen en geeft per variant de lagen en een overzicht.
+
+    De lagen krijgen de variantnaam mee, zodat ze in één GeoPackage naast elkaar kunnen
+    staan en je ze in QGIS één voor één kunt aanzetten.
+    """
+    from dataclasses import replace
+
+    instellingen = instellingen or Instellingen.laden()
+    alle_lagen: dict[str, gpd.GeoDataFrame] = {}
+    regels = []
+    for naam, omschrijving, afwijking in varianten():
+        variant = Instellingen.laden()
+        variant.luchtfoto = instellingen.luchtfoto
+        variant.classificatie = replace(instellingen.classificatie, **afwijking)
+        lagen, overzicht, _, _, _ = classificeer(
+            gebied, variant, grens=grens, gebruik_hoogte=gebruik_hoogte
+        )
+        for laagnaam, laag in lagen.items():
+            if not laag.empty:
+                alle_lagen[f"{naam}_{laagnaam.replace('classificatie_', '')}"] = laag
+        overzicht = overzicht.copy()
+        overzicht.insert(0, "variant", naam)
+        overzicht.insert(1, "instelling", omschrijving)
+        regels.append(overzicht)
+        logger.info("Variant %s: %s", naam, omschrijving)
+    return alle_lagen, pd.concat(regels, ignore_index=True)
