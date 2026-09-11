@@ -140,14 +140,21 @@ python main.py --object data/aoi/mijn_objecten.geojson
 
 Wat er dan in `output/<naam>/` komt:
 
+Standaard draait het op de **nieuwste infraroodjaargang**, `Actueel_orthoHRIR`. Alle
+bestanden beginnen met de gebiedsnaam, zodat je ze los kunt openen zonder te zoeken:
+
 | bestand | inhoud |
 |---|---|
-| `<naam>.gpkg` | een laag per klasse, plus `groen_totaal` en `verharding_totaal` |
+| `<naam>.gpkg` | de classificatie op de nieuwste jaargang: een laag per klasse, plus `groen_totaal` en `verharding_totaal` |
+| `<naam>_infrarood.gpkg` | de gebruikte infraroodtegels, om als achtergrond onder de vlakken te leggen |
+| `<naam>_jaargangen.gpkg` | met `--jaargangen N`: de indeling per jaargang apart, plus `<naam>_jaargangen.csv` |
+| `<naam>_modellen.gpkg` | met `--sweep`: tien klassenindelingen naast elkaar, plus `<naam>_modellen.csv` |
+| `<naam>_classificatie.csv` | oppervlakte en aantal vlakken per klasse |
 | `invoer/` | de rasters waar het op rust: beeld, `vegetatiegetal`, `objecthoogte`, `hoogteruwheid`, en bij meerdere jaargangen `zekerheid_jaargangen` |
-| `infrarood.gpkg` | de gebruikte opname apart, om als achtergrond te laden |
-| `classificatie.csv` | oppervlakte en aantal vlakken per klasse |
-| `klassevarianten.gpkg` | met `--sweep`: tien klassenindelingen naast elkaar, plus `klassevarianten.csv` |
-| `jaargangen.gpkg` | met `--jaargangen N`: de indeling per jaargang apart, plus `jaargangen.csv` |
+
+Op een infraroodopname licht vegetatie rood op, want de eerste band is het nabij-infrarood.
+Leg `<naam>_infrarood.gpkg` onder de klassenlagen en je ziet in één oogopslag of de
+classificatie het beeld volgt: waar rood zit hoort groen te staan.
 
 `groen_totaal` is alle vegetatie op het maaiveld, dus zonder de boomkronen: die hangen
 erboven en zouden het maaiveld dubbel tellen.

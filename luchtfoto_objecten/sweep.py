@@ -170,7 +170,7 @@ def _schrijf(
     return pd.DataFrame(regels)
 
 
-def voer_sweep_uit(gebied, instellingen: Instellingen | None, uitvoer_map: Path) -> dict[str, pd.DataFrame]:
+def voer_sweep_uit(gebied, instellingen: Instellingen | None, uitvoer_map: Path, naam: str = "") -> dict[str, pd.DataFrame]:
     instellingen = instellingen or Instellingen.laden()
     hoofd, groenbeeld, registratie, analysevlak = haal_beelden(gebied, instellingen)
     groen_k = _kenmerken_van(groenbeeld, registratie, analysevlak, instellingen)
@@ -180,7 +180,7 @@ def voer_sweep_uit(gebied, instellingen: Instellingen | None, uitvoer_map: Path)
     groentabel = _schrijf(
         groenvarianten(groen_k), groen_k, analysevlak, "groen",
         instellingen.groen.min_oppervlakte_m2, instellingen.groen.vereenvoudiging_m,
-        uitvoer_map / "groen.gpkg", uitsnede=groenbeeld,
+        uitvoer_map / f"{naam}_groen.gpkg", uitsnede=groenbeeld,
     )
 
     # Het groen dat de verhardingsvarianten als tegenhanger gebruiken, en de verharding die
@@ -195,7 +195,7 @@ def voer_sweep_uit(gebied, instellingen: Instellingen | None, uitvoer_map: Path)
     verhardingstabel = _schrijf(
         verhardingsvarianten(verharding_k, instellingen, groen_op_hoofd), verharding_k, analysevlak,
         "verharding", instellingen.verharding.min_oppervlakte_m2, instellingen.verharding.vereenvoudiging_m,
-        uitvoer_map / "verharding.gpkg", uitsnede=hoofd,
+        uitvoer_map / f"{naam}_verharding.gpkg", uitsnede=hoofd,
     )
 
     verhard_basis = opschonen(
@@ -213,7 +213,7 @@ def voer_sweep_uit(gebied, instellingen: Instellingen | None, uitvoer_map: Path)
     boomtabel = _schrijf(
         boomvarianten(groen_k, basisgroen, verhard_eronder), groen_k, analysevlak, "boom",
         instellingen.groenstructuur.kroon_min_oppervlakte_m2, instellingen.groenstructuur.vereenvoudiging_m,
-        uitvoer_map / "bomen.gpkg", uitsnede=groenbeeld,
+        uitvoer_map / f"{naam}_bomen.gpkg", uitsnede=groenbeeld,
     )
 
     tabellen = {"groen": groentabel, "verharding": verhardingstabel, "bomen": boomtabel}
@@ -222,8 +222,8 @@ def voer_sweep_uit(gebied, instellingen: Instellingen | None, uitvoer_map: Path)
     if infraroodtabel is not None:
         tabellen["infrarood"] = infraroodtabel
 
-    for naam, tabel in tabellen.items():
-        tabel.to_csv(uitvoer_map / f"sweep_{naam}.csv", index=False)
+    for soort, tabel in tabellen.items():
+        tabel.to_csv(uitvoer_map / f"{naam}_sweep_{soort}.csv", index=False)
     return tabellen
 
 
@@ -257,5 +257,5 @@ def _infrarood_sweep(gebied, instellingen, registratie, analysevlak, groen_k, ba
 
     return _schrijf(
         varianten, ir_k, analysevlak, "infrarood", instellingen.groen.min_oppervlakte_m2,
-        instellingen.groen.vereenvoudiging_m, uitvoer_map / "infrarood.gpkg", uitsnede=infrarood,
+        instellingen.groen.vereenvoudiging_m, uitvoer_map / f"{naam}_infrarood.gpkg", uitsnede=infrarood,
     )

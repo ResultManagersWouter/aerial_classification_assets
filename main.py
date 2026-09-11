@@ -244,7 +244,7 @@ def _schrijf_invoer(uitvoer_map: Path, beeld, invoer: dict) -> None:
     print("Invoerlagen: " + ", ".join(pad.name for pad in geschreven))
 
 
-def _schrijf_jaargangen(uitvoer_map: Path, bronnen: dict) -> None:
+def _schrijf_jaargangen(uitvoer_map: Path, naam: str, bronnen: dict) -> None:
     """Bij meerdere jaargangen ook de indeling per jaargang apart.
 
     Naast de consensus dus ook wat elk jaar op zichzelf liet zien, in een eigen bestand
@@ -253,7 +253,7 @@ def _schrijf_jaargangen(uitvoer_map: Path, bronnen: dict) -> None:
     lagen = bronnen.get("lagen_per_jaargang") or {}
     if not lagen:
         return
-    pad = schrijf_geopackage(lagen, uitvoer_map / "jaargangen.gpkg")
+    pad = schrijf_geopackage(lagen, uitvoer_map / f"{naam}_jaargangen.gpkg")
     from luchtfoto_objecten.classificatie import KLASSEN
 
     def splits(naam: str) -> tuple[str, str]:
@@ -264,8 +264,8 @@ def _schrijf_jaargangen(uitvoer_map: Path, bronnen: dict) -> None:
         return naam, ""
 
     regels = []
-    for naam, laag in sorted(lagen.items()):
-        jaargang, klasse = splits(naam)
+    for laagnaam, laag in sorted(lagen.items()):
+        jaargang, klasse = splits(laagnaam)
         regels.append({
             "jaargang": jaargang,
             "klasse": klasse,
@@ -273,7 +273,7 @@ def _schrijf_jaargangen(uitvoer_map: Path, bronnen: dict) -> None:
             "oppervlakte_m2": round(float(laag.geometry.area.sum()), 1),
         })
     tabel = pd.DataFrame(regels)
-    tabel.to_csv(uitvoer_map / "jaargangen.csv", index=False)
+    tabel.to_csv(uitvoer_map / f"{naam}_jaargangen.csv", index=False)
     print("\nPer jaargang, oppervlakte per klasse:")
     print(
         tabel.pivot_table(index="jaargang", columns="klasse", values="oppervlakte_m2", fill_value=0)
@@ -282,7 +282,7 @@ def _schrijf_jaargangen(uitvoer_map: Path, bronnen: dict) -> None:
     print(f"Lagen per jaargang: {pad}")
 
 
-def _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map: Path) -> None:
+def _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map: Path, naam: str) -> None:
     """Tien klassenindelingen naast elkaar, om te zien welke grenzen het beste passen."""
     from luchtfoto_objecten.classificatie import sweep_klassen
 
@@ -291,23 +291,24 @@ def _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map: Path) -
     )
     if not lagen:
         return
-    pad = schrijf_geopackage(lagen, uitvoer_map / "klassevarianten.gpkg")
-    overzicht.to_csv(uitvoer_map / "klassevarianten.csv", index=False)
+    pad = schrijf_geopackage(lagen, uitvoer_map / f"{naam}_modellen.gpkg")
+    overzicht.to_csv(uitvoer_map / f"{naam}_modellen.csv", index=False)
     print("\nKlassengrenzen afgetast, oppervlakte per klasse per variant:")
     draai = overzicht.pivot_table(index=["variant", "instelling"], columns="klasse", values="oppervlakte_m2", fill_value=0)
     print(draai.round(0).to_string())
-    print(f"\nVarianten: {pad}")
+    print(f"\nModelvarianten: {pad}")
 
 
-def _schrijf_beeldpakket(uitvoer_map: Path, beeld, soort: str) -> None:
+def _schrijf_beeldpakket(uitvoer_map: Path, naam: str, beeld, soort: str) -> None:
     """De opname waarop geclassificeerd is, als eigen bestand.
 
     Handig om als achtergrond te laden zonder de vectorlagen mee te slepen, en om te zien
-    op welk beeld een classificatie precies rust.
+    op welk beeld een classificatie precies rust. Op een infraroodopname is alles wat rood
+    oplicht vegetatie, dus je ziet meteen of de classificatie het beeld volgt.
     """
     from luchtfoto_objecten.raster import schrijf_raster_in_geopackage
 
-    pad = uitvoer_map / f"{soort}.gpkg"
+    pad = uitvoer_map / f"{naam}_{soort}.gpkg"
     if pad.exists():
         pad.unlink()
     schrijf_raster_in_geopackage(pad, f"luchtfoto_{beeld.laag}", beeld.afbeelding, beeld.transform)
@@ -384,12 +385,12 @@ def main(argumentenlijst: list[str] | None = None) -> None:
             gebied, instellingen, argumenten, grens
         )
         pad = schrijf_geopackage({n: l for n, l in klassen.items() if not l.empty}, uitvoer_map / f"{naam}.gpkg")
-        overzicht.to_csv(uitvoer_map / "classificatie.csv", index=False)
-        _schrijf_beeldpakket(uitvoer_map, beeld, bronnen["beeldsoort"])
+        overzicht.to_csv(uitvoer_map / f"{naam}_classificatie.csv", index=False)
+        _schrijf_beeldpakket(uitvoer_map, naam, beeld, bronnen["beeldsoort"])
         _schrijf_invoer(uitvoer_map, beeld, invoer)
-        _schrijf_jaargangen(uitvoer_map, bronnen)
+        _schrijf_jaargangen(uitvoer_map, naam, bronnen)
         if argumenten.sweep:
-            _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map)
+            _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map, naam)
         print(f"\nKlassen: {pad}")
         return
 
@@ -417,8 +418,8 @@ def main(argumentenlijst: list[str] | None = None) -> None:
     if argumenten.sweep:
         from luchtfoto_objecten.sweep import voer_sweep_uit
 
-        for naam, tabel in voer_sweep_uit(gebied, instellingen, uitvoer_map).items():
-            print(f"\n{naam}.gpkg:")
+        for soort, tabel in voer_sweep_uit(gebied, instellingen, uitvoer_map, naam).items():
+            print(f"\n{naam}_{soort}.gpkg:")
             print(tabel.to_string(index=False))
         print(f"\nDrie GeoPackages in {uitvoer_map}/, open ze los in QGIS.")
         return
@@ -444,7 +445,7 @@ def main(argumentenlijst: list[str] | None = None) -> None:
         gebied, instellingen, argumenten, grens
     )
     lagen.update({naam: knip_op_grens(laag, grens) for naam, laag in klassen.items()})
-    klasseoverzicht.to_csv(uitvoer_map / "classificatie.csv", index=False)
+    klasseoverzicht.to_csv(uitvoer_map / f"{naam}_classificatie.csv", index=False)
     beeldsoort = bronnen["beeldsoort"]
 
     if argumenten.modellen:
@@ -481,7 +482,7 @@ def main(argumentenlijst: list[str] | None = None) -> None:
 
     pad = schrijf_geopackage(lagen, uitvoer_map / f"{naam}.gpkg")
     _voeg_beelden_toe(pad, gebied, instellingen)
-    _schrijf_beeldpakket(uitvoer_map, beeld, beeldsoort)
+    _schrijf_beeldpakket(uitvoer_map, naam, beeld, beeldsoort)
     resultaat.per_thema.to_csv(uitvoer_map / "samenvatting_per_thema.csv", index=False)
     if not afwijkend.empty:
         afwijkend.drop(columns="geometry").to_csv(uitvoer_map / "afwijkingen.csv", index=False)
