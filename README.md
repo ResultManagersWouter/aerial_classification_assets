@@ -112,7 +112,9 @@ python main.py                                    # het voorbeeldgebied in Centr
 python main.py --extent 121641.1653 122215.9413 486408.2909 487051.9774 --naam centrum
 python main.py --bbox 121641 486408 122215 487051 --naam centrum
 python main.py --grens data/aoi/buurt.geojson --naam buurt
-python main.py --naam centrum --modellen          # ook de modelvergelijking
+python main.py --gebied noord_vliegenbos          # een gebied uit config/gebieden.yaml
+python main.py --gebied noord_vliegenbos --modellen   # elk model als eigen laag
+python main.py --gebied noord_noorderpark --bomen     # boomkroon of groenvlak
 ```
 
 Let op de volgorde van de coördinaten. QGIS toont een extent als xmin, xmax, ymin, ymax en
@@ -229,6 +231,51 @@ segmentatiemodel met ruimtelijke context, SAM of een kleine U-Net op tegels, is 
 kansrijkere volgende stap dan nog een classificatie per pixel. Draai de vergelijking ook op
 een gebied met meer variatie, zoals `noord_noorderpark` of `centrum_plantage`; in een blok
 dat voor 93 procent verhard is valt er weinig te meten.
+
+## De groendrempel, en waarom Otsu hier tegenwerkt
+
+Met `--modellen` krijgt elk model een eigen laag in de GeoPackage, `detectie_groen_<model>`
+en `detectie_verharding_<model>`, allemaal met dezelfde nabewerking en op hetzelfde
+analysevlak. Zo kun je in QGIS over de foto kijken welk model het beeld volgt in plaats van
+af te gaan op een getal. Op het Vliegenbos, een gebied dat vrijwel geheel bos is, kwam
+hier dit uit, op een analysevlak van 145.727 m2:
+
+| model | groen gevonden | aandeel analysevlak |
+|---|---|---|
+| kmeans | 133.823 m2 | 92% |
+| exg_ondergrens | 126.932 m2 | 87% |
+| hsv_groen | 63.043 m2 | 43% |
+| regels (huidig) | 51.688 m2 | 36% |
+| exg_maaiveld | 45.995 m2 | 32% |
+
+De huidige regels vinden dus ongeveer een derde van wat er staat. De oorzaak is Otsu.
+`_groendrempel` neemt `max(otsu, exg_ondergrens)`, en die ondergrens beschermt alleen
+tegen een te lage drempel, nooit tegen een te hoge. Otsu zoekt de scheiding tussen de twee
+grootste pieken in het histogram, en in een gebied dat vooral groen is liggen die twee
+pieken allebei ín het groen: schaduwkroon tegen zonnige kroon. De drempel komt dan op
+0,100 terwijl de ondergrens 0,035 is, en alles wat donkerder groen is valt af. Het helpt
+niet om Otsu alleen op het maaiveld te doen, dat werd hier zelfs 0,109.
+
+## Boomkroon of groenvlak
+
+Boomkronen langs de weg komen als wolkjes groen uit de detectie terwijl de verharding
+eronder gewoon klopt. Met `--bomen` wordt onderzocht of die twee te scheiden zijn, geijkt
+op de stamlocaties uit het bomenregister van Amsterdam (`bomen/stamgegevens`).
+
+De kenmerken wijzen de goede kant op. Op het Noorderpark is een kroon groter (28 tegen 15
+m2), ronder (compactheid 0,44 tegen 0,35), breder (3,5 tegen 2,6 m) en ruwer (textuur
+0,029 tegen 0,025) dan een groenvlak. Maar de verdelingen overlappen zo sterk dat een
+model op die kenmerken blijft steken op 69 procent juist, terwijl je met altijd de
+grootste klasse roepen al op 61 procent zit. De F1 op boomkronen is 0,59. Op beeldkenmerken
+alleen is het dus niet betrouwbaar te doen, zeker niet op de 25cm-zomeropname waarop de
+kroonstructuur nauwelijks te zien is.
+
+Twee routes die wel werken. De goedkoopste is het bomenregister zelf: Amsterdam weet waar
+zijn bomen staan, inclusief hoogteklasse, dus je kunt kronen maskeren met een buffer om de
+stam in plaats van ze uit pixels af te leiden. De stevigste is hoogte. AHN staat open via
+de WCS van PDOK met `dsm_05m` en `dtm_05m`, en het verschil daartussen is de objecthoogte:
+een kroon zit op 6 tot 20 meter, een gazon op nul. Dat scheidt wat kleur en vorm niet
+kunnen scheiden.
 
 ## Beperkingen
 

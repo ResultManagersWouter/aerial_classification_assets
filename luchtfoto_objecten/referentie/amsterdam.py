@@ -84,6 +84,11 @@ BRONNEN: dict[str, Registratiebron] = {
         omschrijving="Waterdelen uit de BGT, gebruikt als uitsluitmasker",
         extra_params=ACTUEEL,
     ),
+    "bomen": Registratiebron(
+        sleutel="bomen",
+        pad="bomen/stamgegevens",
+        omschrijving="Stamlocaties van de beheerde bomen, met soort en hoogteklasse",
+    ),
 }
 
 

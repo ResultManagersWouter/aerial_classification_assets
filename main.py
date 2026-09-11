@@ -42,7 +42,7 @@ from pathlib import Path
 import geopandas as gpd
 from shapely.geometry import box
 
-from luchtfoto_objecten.gebieden import gebied_uit_bbox
+from luchtfoto_objecten.gebieden import gebied_op_naam, gebied_uit_bbox
 from luchtfoto_objecten.geo_hulp import RD
 from luchtfoto_objecten.instellingen import Instellingen
 from luchtfoto_objecten.pipeline import voer_analyse_uit
@@ -51,6 +51,10 @@ from luchtfoto_objecten.vergelijking.signalering import BEVESTIGD
 
 # Voorbeeldgebied in Amsterdam Centrum, gebruikt als je geen gebied opgeeft.
 VOORBEELD_EXTENT = (121641.1653, 122215.9413, 486408.2909, 487051.9774)
+
+# De BGT-terreindelen zitten wel in de vergelijking, maar niet in de uitvoer: ze leggen de
+# hele kaart dicht en maken het lastig om de detectie tegen de luchtfoto te bekijken.
+LAGEN_NIET_SCHRIJVEN = ("registratie_begroeideterreindelen", "registratie_onbegroeideterreindelen")
 
 TOON_AANTAL = 25
 PRIORITEITSVOLGORDE = {"hoog": 0, "midden": 1, "laag": 2}
@@ -73,14 +77,24 @@ def bouw_parser() -> argparse.ArgumentParser:
         help="gebied in RD, in de volgorde van dit project",
     )
     gebiedsgroep.add_argument("--grens", type=Path, help="bestand met de gebiedsgrens als polygon")
-    parser.add_argument("--naam", default="centrum_vergelijking", help="naam van de map onder output/")
+    gebiedsgroep.add_argument("--gebied", help="naam uit config/gebieden.yaml, bijvoorbeeld noord_vliegenbos")
+    parser.add_argument("--naam", help="naam van de map onder output/, standaard de gebiedsnaam")
     parser.add_argument("--zoom", type=int, help="15 is 10,5 cm/px, 16 is 5,25 cm/px en viermaal zoveel tegels")
-    parser.add_argument("--modellen", action="store_true", help="draai ook de modelvergelijking")
+    parser.add_argument(
+        "--modellen", action="store_true",
+        help="zet per model een detectielaag in de GeoPackage en scoor ze tegen de BGT",
+    )
+    parser.add_argument(
+        "--bomen", action="store_true",
+        help="onderzoek of het gevonden groen een boomkroon is of echt groen maaiveld",
+    )
     return parser
 
 
 def bepaal_grens(argumenten):
     """De gebiedsgrens waarover we een uitspraak doen, in RD (EPSG:28992)."""
+    if argumenten.gebied:
+        return gebied_op_naam(argumenten.gebied).als_polygon()
     if argumenten.grens:
         grens = gpd.read_file(argumenten.grens)
         if grens.empty:
@@ -141,15 +155,20 @@ def main(argumentenlijst: list[str] | None = None) -> None:
         instellingen.luchtfoto.zoom = argumenten.zoom
 
     grens = bepaal_grens(argumenten)
-    gebied = gebied_uit_bbox(grens.bounds, naam=argumenten.naam)
-    uitvoer_map = Path("output") / argumenten.naam
+    naam = argumenten.naam or argumenten.gebied or "centrum_vergelijking"
+    gebied = gebied_uit_bbox(grens.bounds, naam=naam)
+    uitvoer_map = Path("output") / naam
     uitvoer_map.mkdir(parents=True, exist_ok=True)
     print(f"Analysegebied: {gebied}, grensvlak {grens.area:.0f} m2")
 
     resultaat = voer_analyse_uit(
         gebied, instellingen=instellingen, uitvoer_map=uitvoer_map, schrijf_bestanden=False
     )
-    lagen = {naam: knip_op_grens(laag, grens) for naam, laag in resultaat.lagen.items()}
+    lagen = {
+        laagnaam: knip_op_grens(laag, grens)
+        for laagnaam, laag in resultaat.lagen.items()
+        if laagnaam not in LAGEN_NIET_SCHRIJVEN
+    }
 
     print()
     print(resultaat.toon())
@@ -159,22 +178,42 @@ def main(argumentenlijst: list[str] | None = None) -> None:
 
     afwijkend = toon_afwijkingen(lagen["signaleringen"], lagen["witte_vlekken"])
 
-    pad = schrijf_geopackage(lagen, uitvoer_map / f"{argumenten.naam}.gpkg")
-    resultaat.per_thema.to_csv(uitvoer_map / "samenvatting_per_thema.csv", index=False)
-    if not afwijkend.empty:
-        afwijkend.drop(columns="geometry").to_csv(uitvoer_map / "afwijkingen.csv", index=False)
-    print(f"\nAlle lagen (te openen in QGIS): {pad}")
-
     if argumenten.modellen:
+        from luchtfoto_objecten.modeldetectie import bouw_detectielagen
         from luchtfoto_objecten.modelvergelijking import vergelijk_modellen
+
+        modellagen, overzicht = bouw_detectielagen(gebied, instellingen)
+        lagen.update({laagnaam: knip_op_grens(laag, grens) for laagnaam, laag in modellagen.items()})
+        print("\nWat elk model detecteert, als eigen laag in de GeoPackage:")
+        print(overzicht.to_string(index=False))
+        overzicht.to_csv(uitvoer_map / "modeloverzicht.csv", index=False)
 
         vergelijking, belang = vergelijk_modellen(gebied, instellingen)
         print("\nModelvergelijking, referentie is de BGT, west getraind en oost gescoord:")
         print(vergelijking.to_string(index=False))
-        print("\nGewicht van de kenmerken in de boommodellen:")
-        print(belang.to_string(index=False))
         vergelijking.to_csv(uitvoer_map / "modelvergelijking.csv", index=False)
         belang.to_csv(uitvoer_map / "kenmerkbelang.csv", index=False)
+
+    if argumenten.bomen:
+        from luchtfoto_objecten.boomherkenning import analyseer
+
+        vlakken, medianen, scores = analyseer(gebied, instellingen)
+        lagen["groen_boom_of_vlak"] = knip_op_grens(vlakken, grens)
+        print("\nBoomkroon of groenvlak, geijkt op het bomenregister:")
+        print(vlakken["label"].value_counts(dropna=False).to_string())
+        print("\nMediaan per kenmerk:")
+        print(medianen.to_string(index=False))
+        if not scores.empty:
+            print("\nTe scheiden op beeldkenmerken alleen, met kruisvalidatie:")
+            print(scores.to_string(index=False))
+            scores.to_csv(uitvoer_map / "boomherkenning_score.csv", index=False)
+        vlakken.drop(columns="geometry").to_csv(uitvoer_map / "boom_of_vlak.csv", index=False)
+
+    pad = schrijf_geopackage(lagen, uitvoer_map / f"{naam}.gpkg")
+    resultaat.per_thema.to_csv(uitvoer_map / "samenvatting_per_thema.csv", index=False)
+    if not afwijkend.empty:
+        afwijkend.drop(columns="geometry").to_csv(uitvoer_map / "afwijkingen.csv", index=False)
+    print(f"\nAlle lagen (te openen in QGIS): {pad}")
 
     print(f"\nUitvoer staat in {uitvoer_map}/")
 
