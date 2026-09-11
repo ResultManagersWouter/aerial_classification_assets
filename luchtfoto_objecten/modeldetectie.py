@@ -274,14 +274,19 @@ def haal_beelden(gebied, instellingen: Instellingen):
 
 def bouw_detectielagen(gebied, instellingen: Instellingen | None = None):
     """Haalt het beeld op en levert per model een laag met gedetecteerde vlakken."""
+    from luchtfoto_objecten.infrarood import haal_infrarood
+
     instellingen = instellingen or Instellingen.laden()
     hoofd, groenbeeld, registratie, analysevlak = haal_beelden(gebied, instellingen)
-    return detectielagen(groenbeeld, hoofd, registratie, analysevlak, instellingen)
+    return detectielagen(
+        groenbeeld, hoofd, registratie, analysevlak, instellingen,
+        infrarood=haal_infrarood(gebied, instellingen),
+    )
 
 
 def detectielagen(
     groenbeeld, hoofd, registratie: dict[str, gpd.GeoDataFrame], analysevlak: BaseGeometry,
-    instellingen: Instellingen,
+    instellingen: Instellingen, infrarood=None,
 ) -> tuple[dict[str, gpd.GeoDataFrame], pd.DataFrame]:
     """Per klasse en per model een laag, plus een tabel met wat elk model oplevert."""
     lagen: dict[str, gpd.GeoDataFrame] = {}
@@ -347,7 +352,53 @@ def detectielagen(
             "oppervlakte_m2": regel["oppervlakte_m2"], "aandeel_analysevlak": regel["aandeel_analysevlak"],
         })
 
+    if infrarood is not None:
+        lagen.update(
+            _infraroodlagen(
+                infrarood, groen_kenmerken, groenmaskers["hsv_groen"], registratie, analysevlak,
+                instellingen, overzicht,
+            )
+        )
+
     return lagen, pd.DataFrame(overzicht)
+
+
+def _infraroodlagen(
+    infrarood, groen_kenmerken, groen_zomer, registratie, analysevlak, instellingen, overzicht,
+) -> dict[str, gpd.GeoDataFrame]:
+    """NDVI op de voorjaarsopname, en daarmee kroon los van begroeid maaiveld.
+
+    Het infrarood is in het vroege voorjaar gevlogen met kale bomen, dus NDVI kijkt hier
+    door de kroon heen naar de grond. Wat in de zomer groen is maar in het voorjaar geen
+    begroeiing toont, is dus kroon boven iets anders.
+    """
+    from luchtfoto_objecten.infrarood import ndvi, ndvi_drempel, splits_kroon_en_veld
+
+    ir_kenmerken = _kenmerken_van(infrarood, registratie, analysevlak, instellingen)
+    waarde = ndvi(infrarood)
+    drempel = ndvi_drempel(waarde, ir_kenmerken.maaiveld)
+    logger.info("NDVI-drempel op het maaiveld: %+.3f (%s)", drempel, infrarood.laag)
+
+    groen_op_ir = _naar_ander_raster(groen_zomer, groen_kenmerken, ir_kenmerken)
+    if groen_op_ir is None:
+        groen_op_ir = np.zeros(ir_kenmerken.vorm, dtype=bool)
+    kroon, veld = splits_kroon_en_veld(waarde, groen_op_ir, ir_kenmerken.maaiveld, drempel)
+
+    lagen = {}
+    for laagnaam, masker, klasse, min_opp in (
+        ("detectie_groen_ndvi", (waarde > drempel) & ir_kenmerken.maaiveld, "groen",
+         instellingen.groen.min_oppervlakte_m2),
+        ("detectie_groenveld_ir", veld, "groenveld", instellingen.groenstructuur.strook_min_oppervlakte_m2),
+        ("detectie_boomkroon_ir", kroon, "boomkroon", instellingen.groenstructuur.kroon_min_oppervlakte_m2),
+    ):
+        schoon = opschonen(masker, ir_kenmerken.transform, min_opp)
+        laag, regel = _laag_en_regel(
+            schoon, ir_kenmerken, klasse, "ndvi_infrarood", min_opp,
+            instellingen.groenstructuur.vereenvoudiging_m, analysevlak, infrarood.laag,
+        )
+        lagen[laagnaam] = laag
+        overzicht.append(regel)
+    return lagen
 
 
 def _laag_en_regel(masker, kenmerken, klasse, model, min_opp, vereenvoudiging, analysevlak, opname):

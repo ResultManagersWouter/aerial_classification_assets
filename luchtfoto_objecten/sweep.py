@@ -35,6 +35,7 @@ from luchtfoto_objecten.modeldetectie import (
     naar_laag,
     opschonen,
 )
+from luchtfoto_objecten.raster import schrijf_raster_in_geopackage
 from luchtfoto_objecten.uitvoer import schrijf_geopackage
 
 logger = logging.getLogger(__name__)
@@ -143,7 +144,7 @@ def boomvarianten(k: Beeldkenmerken, groen: np.ndarray, verhard_eronder: np.ndar
 
 def _schrijf(
     varianten, k: Beeldkenmerken, analysevlak, klasse: str, min_opp: float, vereenvoudiging: float,
-    pad: Path,
+    pad: Path, uitsnede=None,
 ) -> pd.DataFrame:
     lagen: dict[str, gpd.GeoDataFrame] = {}
     regels = []
@@ -164,6 +165,8 @@ def _schrijf(
     gevuld = {naam: laag for naam, laag in lagen.items() if not laag.empty}
     if gevuld:
         schrijf_geopackage(gevuld, pad)
+        if uitsnede is not None:
+            schrijf_raster_in_geopackage(pad, f"luchtfoto_{uitsnede.laag}", uitsnede.afbeelding, uitsnede.transform)
     return pd.DataFrame(regels)
 
 
@@ -177,7 +180,7 @@ def voer_sweep_uit(gebied, instellingen: Instellingen | None, uitvoer_map: Path)
     groentabel = _schrijf(
         groenvarianten(groen_k), groen_k, analysevlak, "groen",
         instellingen.groen.min_oppervlakte_m2, instellingen.groen.vereenvoudiging_m,
-        uitvoer_map / "groen.gpkg",
+        uitvoer_map / "groen.gpkg", uitsnede=groenbeeld,
     )
 
     # Het groen dat de verhardingsvarianten als tegenhanger gebruiken, en de verharding die
@@ -192,7 +195,7 @@ def voer_sweep_uit(gebied, instellingen: Instellingen | None, uitvoer_map: Path)
     verhardingstabel = _schrijf(
         verhardingsvarianten(verharding_k, instellingen, groen_op_hoofd), verharding_k, analysevlak,
         "verharding", instellingen.verharding.min_oppervlakte_m2, instellingen.verharding.vereenvoudiging_m,
-        uitvoer_map / "verharding.gpkg",
+        uitvoer_map / "verharding.gpkg", uitsnede=hoofd,
     )
 
     verhard_basis = opschonen(
@@ -210,9 +213,49 @@ def voer_sweep_uit(gebied, instellingen: Instellingen | None, uitvoer_map: Path)
     boomtabel = _schrijf(
         boomvarianten(groen_k, basisgroen, verhard_eronder), groen_k, analysevlak, "boom",
         instellingen.groenstructuur.kroon_min_oppervlakte_m2, instellingen.groenstructuur.vereenvoudiging_m,
-        uitvoer_map / "bomen.gpkg",
+        uitvoer_map / "bomen.gpkg", uitsnede=groenbeeld,
     )
 
-    for naam, tabel in (("groen", groentabel), ("verharding", verhardingstabel), ("bomen", boomtabel)):
+    tabellen = {"groen": groentabel, "verharding": verhardingstabel, "bomen": boomtabel}
+
+    infraroodtabel = _infrarood_sweep(gebied, instellingen, registratie, analysevlak, groen_k, basisgroen, uitvoer_map)
+    if infraroodtabel is not None:
+        tabellen["infrarood"] = infraroodtabel
+
+    for naam, tabel in tabellen.items():
         tabel.to_csv(uitvoer_map / f"sweep_{naam}.csv", index=False)
-    return {"groen": groentabel, "verharding": verhardingstabel, "bomen": boomtabel}
+    return tabellen
+
+
+def _infrarood_sweep(gebied, instellingen, registratie, analysevlak, groen_k, basisgroen, uitvoer_map):
+    """NDVI-drempels op de voorjaars-infraroodopname, plus de scheiding kroon en groenveld."""
+    from luchtfoto_objecten.infrarood import haal_infrarood, ndvi, ndvi_drempel, splits_kroon_en_veld
+
+    infrarood = haal_infrarood(gebied, instellingen)
+    if infrarood is None:
+        return None
+
+    ir_k = _kenmerken_van(infrarood, registratie, analysevlak, instellingen)
+    waarde = ndvi(infrarood)
+    otsu = ndvi_drempel(waarde, ir_k.maaiveld)
+    groen_op_ir = _naar_ander_raster(basisgroen, groen_k, ir_k)
+    if groen_op_ir is None:
+        groen_op_ir = np.zeros(ir_k.vorm, dtype=bool)
+
+    varianten = [
+        (f"01_ndvi_otsu", f"NDVI boven Otsu op maaiveld ({otsu:+.3f})", waarde > otsu),
+        ("02_ndvi_min005", "NDVI boven -0.05, zeer ruim", waarde > -0.05),
+        ("03_ndvi_000", "NDVI boven 0.00", waarde > 0.0),
+        ("04_ndvi_005", "NDVI boven 0.05", waarde > 0.05),
+        ("05_ndvi_010", "NDVI boven 0.10", waarde > 0.10),
+        ("06_ndvi_015", "NDVI boven 0.15, streng", waarde > 0.15),
+    ]
+    for naam, drempel in (("07", otsu), ("08", 0.0), ("09", 0.05), ("10", 0.10)):
+        kroon, veld = splits_kroon_en_veld(waarde, groen_op_ir, ir_k.maaiveld, drempel)
+        varianten.append((f"{naam}_groenveld_{drempel:+.2f}".replace(".", ""), f"begroeid maaiveld bij NDVI {drempel:+.3f}", veld))
+        varianten.append((f"{naam}_boomkroon_{drempel:+.2f}".replace(".", ""), f"kroon bij NDVI {drempel:+.3f}", kroon))
+
+    return _schrijf(
+        varianten, ir_k, analysevlak, "infrarood", instellingen.groen.min_oppervlakte_m2,
+        instellingen.groen.vereenvoudiging_m, uitvoer_map / "infrarood.gpkg", uitsnede=infrarood,
+    )

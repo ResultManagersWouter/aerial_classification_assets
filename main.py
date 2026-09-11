@@ -148,6 +148,28 @@ def toon_afwijkingen(signaleringen: gpd.GeoDataFrame, witte_vlekken: gpd.GeoData
     return gesorteerd.drop(columns="_volgorde")
 
 
+def _voeg_beelden_toe(pad: Path, gebied, instellingen) -> None:
+    """Zet de opnamen waarop de classificatie rust als rasterlaag in de GeoPackage.
+
+    Zo open je één bestand in QGIS en heb je de foto en de vlakken bij elkaar, inclusief
+    het infrarood waarop vegetatie het duidelijkst van verharding te onderscheiden is.
+    """
+    from luchtfoto_objecten.infrarood import haal_infrarood
+    from luchtfoto_objecten.modeldetectie import haal_beelden
+    from luchtfoto_objecten.raster import schrijf_raster_in_geopackage
+
+    hoofd, groenbeeld, _, _ = haal_beelden(gebied, instellingen)
+    beelden = [hoofd]
+    if groenbeeld.laag != hoofd.laag:
+        beelden.append(groenbeeld)
+    infrarood = haal_infrarood(gebied, instellingen)
+    if infrarood is not None:
+        beelden.append(infrarood)
+    for uitsnede in beelden:
+        schrijf_raster_in_geopackage(pad, f"luchtfoto_{uitsnede.laag}", uitsnede.afbeelding, uitsnede.transform)
+    print("Beelden in de GeoPackage: " + ", ".join(f"luchtfoto_{u.laag}" for u in beelden))
+
+
 def main(argumentenlijst: list[str] | None = None) -> None:
     argumenten = bouw_parser().parse_args(argumentenlijst)
     logging.basicConfig(
@@ -223,6 +245,7 @@ def main(argumentenlijst: list[str] | None = None) -> None:
         vlakken.drop(columns="geometry").to_csv(uitvoer_map / "boom_of_vlak.csv", index=False)
 
     pad = schrijf_geopackage(lagen, uitvoer_map / f"{naam}.gpkg")
+    _voeg_beelden_toe(pad, gebied, instellingen)
     resultaat.per_thema.to_csv(uitvoer_map / "samenvatting_per_thema.csv", index=False)
     if not afwijkend.empty:
         afwijkend.drop(columns="geometry").to_csv(uitvoer_map / "afwijkingen.csv", index=False)

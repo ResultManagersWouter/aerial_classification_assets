@@ -85,8 +85,13 @@ def bepaal_groenbron(
 
 
 def _kandidaten(hoofdlaag: str, cache_map: Path | None) -> list[str]:
-    """De hoofdlaag eerst, daarna alle jaargangen van nieuw naar oud."""
-    jaarlagen = jaarlagen_nieuwste_eerst(haal_beschikbare_lagen(cache_map))
+    """De hoofdlaag eerst, daarna alle jaargangen van nieuw naar oud.
+
+    Alleen RGB. De bladstand wordt met excess green gemeten en dat getal zegt niets op een
+    infraroodopname, waar vegetatie juist rood is; die lagen horen hier dus niet tussen.
+    """
+    lagen = {naam: titel for naam, titel in haal_beschikbare_lagen(cache_map).items() if not naam.endswith("IR")}
+    jaarlagen = jaarlagen_nieuwste_eerst(lagen)
     volgorde = [hoofdlaag] + [laag for laag in jaarlagen if laag != hoofdlaag]
     return volgorde[:MAX_KANDIDATEN]
 

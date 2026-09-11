@@ -19,6 +19,16 @@ from urllib3.util.retry import Retry
 logger = logging.getLogger(__name__)
 
 BASIS_URL = "https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0"
+# De infraroodopnamen staan bij PDOK op een eigen service. Laagnamen eindigen daar op IR.
+BASIS_URL_INFRAROOD = "https://service.pdok.nl/hwh/luchtfotocir/wmts/v1_0"
+
+
+def is_infrarood(laag: str) -> bool:
+    return laag.endswith("IR")
+
+
+def basis_url(laag: str) -> str:
+    return BASIS_URL_INFRAROOD if is_infrarood(laag) else BASIS_URL
 TEGELMATRIXSET = "EPSG:28992"
 TEGELGROOTTE = 256
 RD_LINKSBOVEN = (-285401.92, 903401.92)
@@ -35,19 +45,26 @@ BEKENDE_LAGEN = {
     "2025_orthoHR": "Luchtfoto 2025 Ortho 8cm RGB",
     "2024_orthoHR": "Luchtfoto 2024 Ortho 8cm RGB",
 }
-JAARLAAG_PATROON = re.compile(r"^(\d{4})_(quick)?ortho(HR|25)$")
+JAARLAAG_PATROON = re.compile(r"^(\d{4})_(quick)?ortho(HR|25)(IR)?$")
 
 
 def haal_beschikbare_lagen(cache_map: Path | None = None, timeout: int = 60) -> dict[str, str]:
     """Leest de laagnamen rechtstreeks uit de capabilities, zodat nieuwe jaargangen vanzelf meekomen."""
-    cachepad = cache_map / "wmts_capabilities.xml" if cache_map else None
+    lagen: dict[str, str] = {}
+    for dienst, url in (("rgb", BASIS_URL), ("cir", BASIS_URL_INFRAROOD)):
+        lagen.update(_lagen_van_dienst(dienst, url, cache_map, timeout))
+    return lagen or dict(BEKENDE_LAGEN)
+
+
+def _lagen_van_dienst(dienst: str, basis: str, cache_map: Path | None, timeout: int) -> dict[str, str]:
+    cachepad = cache_map / f"wmts_capabilities_{dienst}.xml" if cache_map else None
     inhoud = None
     if cachepad is not None and cachepad.exists():
         inhoud = cachepad.read_text(encoding="utf-8")
     if inhoud is None:
         try:
             antwoord = requests.get(
-                f"{BASIS_URL}/wmts",
+                f"{basis}/wmts",
                 params={"request": "GetCapabilities", "service": "wmts"},
                 timeout=timeout,
                 headers={"User-Agent": "luchtfoto-objecten-identificatie/0.1"},
@@ -58,8 +75,8 @@ def haal_beschikbare_lagen(cache_map: Path | None = None, timeout: int = 60) -> 
                 cachepad.parent.mkdir(parents=True, exist_ok=True)
                 cachepad.write_text(inhoud, encoding="utf-8")
         except Exception as fout:
-            logger.warning("Capabilities niet op te halen (%s), we gebruiken de bekende lagen", fout)
-            return dict(BEKENDE_LAGEN)
+            logger.warning("Capabilities van %s niet op te halen (%s)", dienst, fout)
+            return dict(BEKENDE_LAGEN) if dienst == "rgb" else {}
 
     naamruimten = {"wmts": "http://www.opengis.net/wmts/1.0", "ows": "http://www.opengis.net/ows/1.1"}
     lagen = {}
@@ -68,7 +85,7 @@ def haal_beschikbare_lagen(cache_map: Path | None = None, timeout: int = 60) -> 
         titel = laag.find(f"{{{naamruimten['ows']}}}Title")
         if identificatie is not None and identificatie.text:
             lagen[identificatie.text] = titel.text if titel is not None else ""
-    return lagen or dict(BEKENDE_LAGEN)
+    return lagen
 
 
 def jaarlagen_nieuwste_eerst(lagen: dict[str, str]) -> list[str]:
@@ -143,7 +160,7 @@ class LuchtfotoWMTS:
         self.sessie.mount("https://", HTTPAdapter(max_retries=herhaling, pool_maxsize=max_werkers * 2))
 
     def tegel_url(self, kolom: int, rij: int) -> str:
-        return f"{BASIS_URL}/{self.laag}/{TEGELMATRIXSET}/{self.zoom:02d}/{kolom}/{rij}.jpeg"
+        return f"{basis_url(self.laag)}/{self.laag}/{TEGELMATRIXSET}/{self.zoom:02d}/{kolom}/{rij}.jpeg"
 
     def _cachepad(self, kolom: int, rij: int) -> Path | None:
         if self.cache_map is None:
