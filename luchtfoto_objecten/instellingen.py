@@ -105,6 +105,9 @@ class ClassificatieParameters:
     # grondvlak, niet het dak, dus een overstek of balkon steekt eroverheen: vandaar de
     # buffer. Ondergrondse bouwwerken worden overgeslagen, want daarboven ligt maaiveld.
     gebruik_bgt_bouwwerken: bool = True
+    # De opname met blad erbij halen als tweede kans op groen, voor bladverliezende hagen
+    # en heesters die op de voorjaars-infrarood kaal staan.
+    gebruik_zomerbeeld: bool = True
     pandbuffer_m: float = 1.0
 
 

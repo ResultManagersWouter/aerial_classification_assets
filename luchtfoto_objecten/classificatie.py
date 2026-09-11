@@ -47,7 +47,10 @@ from luchtfoto_objecten.raster import masker_naar_polygonen, polygonen_naar_mask
 logger = logging.getLogger(__name__)
 
 BEELDSOORTEN = ("infrarood", "ortho")
-KLASSEN = ("gras", "heesters", "haag", "boomkroon", "dichte_begroeiing", "verharding", "bouwwerk")
+KLASSEN = (
+    "gras", "heesters", "haag", "boomkroon", "dichte_begroeiing", "verharding", "bouwwerk",
+    "opgaand_onbepaald", "onbepaald",
+)
 
 
 def haal_beeld(gebied, instellingen: Instellingen, soort: str | None = None):
@@ -123,8 +126,14 @@ def maaiveldmasker(uitsnede, objecthoogte, instellingen: Instellingen, bbox=None
 def deel_in(
     getal: np.ndarray, objecthoogte: np.ndarray | None, ruwheid: np.ndarray | None,
     maaiveld: np.ndarray, drempel: float, instellingen: Instellingen,
+    zomergroen: np.ndarray | None = None,
 ) -> dict[str, np.ndarray]:
-    """Per klasse een masker, op hoogte en groensignaal."""
+    """Per klasse een masker, op hoogte en groensignaal.
+
+    Elke pixel van het maaiveld krijgt een klasse. Wat nergens in past komt in
+    `onbepaald` terecht, zodat er geen gaten in de uitvoer vallen: een gat zegt namelijk
+    niets, en je kunt niet zien of er niets stond of dat de indeling het liet liggen.
+    """
     params = instellingen.classificatie
     begroeid = getal > drempel
 
@@ -145,14 +154,32 @@ def deel_in(
     bouwwerk = hoog & ~grillig & ~begroeid
     boomkroon = hoog & (grillig | begroeid) & ~bouwwerk
 
-    return {
+    if zomergroen is not None:
+        # De zomeropname alléén inzetten waar het infrarood niets ziet maar er wel iets
+        # staat: een bladverliezende haag is in het voorjaar kaal en haalt de NDVI-drempel
+        # niet. Breder inzetten kan niet, want de 25cm-zomeropname heeft een groene waas
+        # over het hele beeld, tot in de wegen toe; dat zou elke straat groen maken.
+        kale_opstand = ~begroeid & (heesterhoogte | middenhoog)
+        begroeid = begroeid | (zomergroen & kale_opstand)
+
+    maskers = {
         "gras": begroeid & laag & maaiveld,
         "heesters": begroeid & heesterhoogte & maaiveld,
         "dichte_begroeiing": begroeid & middenhoog & maaiveld,
         "boomkroon": boomkroon & maaiveld,
         "verharding": ~begroeid & laag & maaiveld,
         "bouwwerk": bouwwerk,
+        # Er staat iets tussen enkelhoogte en boomhoogte, maar geen enkele opname ziet er
+        # groen. Meestal een kale haag of heester, soms een hek, een container of een auto.
+        # Het is geen verharding en geen gat, dus krijgt het een eigen naam.
+        "opgaand_onbepaald": ~begroeid & (heesterhoogte | middenhoog) & maaiveld,
     }
+    # Vangnet: alles van het maaiveld dat nergens in viel.
+    gedekt = np.zeros(maaiveld.shape, dtype=bool)
+    for masker in maskers.values():
+        gedekt |= masker
+    maskers["onbepaald"] = maaiveld & ~gedekt
+    return maskers
 
 
 def _gemiddelde_per_vlak(geometrieen, vlak: np.ndarray, transform) -> pd.Series:
@@ -166,6 +193,38 @@ def _gemiddelde_per_vlak(geometrieen, vlak: np.ndarray, transform) -> pd.Series:
     )
     waarden = ndimage.mean(vlak, labels=labels, index=np.arange(1, len(geometrieen) + 1))
     return pd.Series(np.nan_to_num(waarden), index=geometrieen.index)
+
+
+def _zomergroen(gebied, instellingen: Instellingen, vorm, transform) -> np.ndarray | None:
+    """Vegetatie volgens de opname mét blad, als tweede kans naast het voorjaars-infrarood.
+
+    Een bladverliezende haag is in het vroege voorjaar kaal en haalt de NDVI-drempel niet,
+    maar op de zomeropname is hij gewoon groen. Zonder deze stap valt zo'n haag tussen wal
+    en schip: geen vegetatie volgens het infrarood, geen verharding volgens de hoogte.
+    """
+    from luchtfoto_objecten.bladstand import bepaal_groenbron
+    from luchtfoto_objecten.detectie.kenmerken import exces_groen
+    from luchtfoto_objecten.wmts import LuchtfotoWMTS
+
+    try:
+        keuze = bepaal_groenbron(
+            gebied.bbox, hoofdlaag=instellingen.luchtfoto.laag, zoom=instellingen.luchtfoto.zoom,
+            cache_map=instellingen.cache_map, voorkeur=instellingen.luchtfoto.groenlaag,
+            minimaal_aandeel=instellingen.luchtfoto.groen_minimaal_aandeel,
+        )
+        uitsnede = LuchtfotoWMTS(
+            laag=keuze.laag, zoom=keuze.zoom, cache_map=instellingen.cache_map,
+            max_werkers=instellingen.luchtfoto.max_werkers,
+        ).haal_uitsnede(gebied.bbox, toon_voortgang=False)
+    except Exception as fout:
+        logger.warning("Zomeropname niet op te halen (%s), we blijven bij het infrarood", fout)
+        return None
+
+    from luchtfoto_objecten.meerjarig_beeld import _gelijk_raster
+
+    groen = exces_groen(uitsnede.afbeelding) > instellingen.groen.exg_ondergrens
+    logger.info("Zomeropname %s meegenomen als tweede kans op groen", keuze.laag)
+    return _gelijk_raster(groen.astype(np.float32), uitsnede.transform, vorm, transform) > 0.5
 
 
 def _vormmaten(vlakken: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -259,7 +318,8 @@ def classificeer(
                 len(jaarverslag), nodig,
             )
 
-    maskers = deel_in(getal, objecthoogte, ruwheid, maaiveld, drempel, instellingen)
+    zomergroen = _zomergroen(gebied, instellingen, vorm, uitsnede.transform) if params.gebruik_zomerbeeld else None
+    maskers = deel_in(getal, objecthoogte, ruwheid, maaiveld, drempel, instellingen, zomergroen)
     maskers["bouwwerk"] = bouwwerkvlak
 
     lagen: dict[str, gpd.GeoDataFrame] = {}

@@ -171,6 +171,19 @@ erboven en zouden het maaiveld dubbel tellen.
 | `dichte_begroeiing` | begroeid, tussen heester- en boomhoogte |
 | `verharding` | onbegroeid en vlak |
 | `bouwwerk` | hoog maar glad van bovenaf, dus een dak |
+| `opgaand_onbepaald` | er staat iets tussen enkel- en boomhoogte, maar geen enkele opname ziet er groen: een kale haag, een hek, een container |
+| `onbepaald` | vangnet, zodat er geen gaten in de uitvoer vallen |
+
+Elke vierkante meter maaiveld krijgt een klasse. Een gat in de uitvoer zegt namelijk niets:
+je kunt er niet aan zien of er niets stond of dat de indeling het liet liggen. Gemeten op
+de ArenA, het Noorderpark en de Dam blijft er 0,00 procent onbedeeld over.
+
+Bladverliezende hagen en heesters vroegen daarbij om een tweede opname. Het infrarood is
+van het vroege voorjaar, dus zo'n haag staat er kaal op en haalt de NDVI-drempel niet,
+terwijl de hoogte laat zien dat er wél iets staat. Voor precies die plekken, en alleen
+daar, wordt de opname mét blad erbij gehaald. Alleen daar, want de 25cm-zomeropname heeft
+een groene waas over het hele beeld tot in de wegen toe: breder inzetten maakte in een test
+elke straat groen, met gras van 15.000 naar 65.000 m2 en verharding van 58.000 naar 7.000.
 
 Waarom hoogte het verschil maakt, met cijfers van het Noorderpark. Op beeld alleen kwam de
 boomherkenning niet verder dan 3 tot 9 procent van de geregistreerde stammen: de
