@@ -170,6 +170,15 @@ AHN erbij wordt dat **56 procent**, want lidar meet de takken gewoon, blad of ni
 dak is even hoog als een kroon maar veel vlakker, dus de ruwheid van de hoogte scheidt die
 twee zonder dat er een pandenkaart aan te pas komt.
 
+Gebouwen gaan er op twee manieren uit, want groen op een dak is een dure fout. Het AHN
+haalt ze eruit op hoogte en vlakheid, en de BAG haalt ze eruit op hun grondvlak, met een
+meter buffer voor overstekende daken. Dat tweede slot is nodig gebleken: onder een pand
+meet het AHN geen maaiveld, dus het DTM zit daar vol gaten. Bij de ArenA is 45 procent van
+het maaiveldmodel leeg, precies waar de bebouwing staat, en die gaten worden nu opgevuld
+vanaf de rand in plaats van op nul gezet. Zonder die twee ingrepen belandde een dak op
+maaiveldhoogte en werd het als gras geclassificeerd. Uitzetten kan met `gebruik_bag` in
+`config/parameters.yaml`, maar dat is niet aan te raden.
+
 Twee dingen om te weten. De klassen sluiten elkaar uit, dus gras ónder een boomkroon telt
 als kroon; op het Noorderpark zakt de dekking van geregistreerd groen daardoor van 67 naar
 32 procent terwijl er niets verdwenen is. En het AHN had hier dekking op 67 procent van het

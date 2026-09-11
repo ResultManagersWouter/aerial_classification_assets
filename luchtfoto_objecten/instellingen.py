@@ -101,6 +101,10 @@ class ClassificatieParameters:
     min_oppervlakte_m2: float = 3.0
     kroon_min_oppervlakte_m2: float = 2.0
     vereenvoudiging_m: float = 0.25
+    # Panden uit de BAG als tweede slot naast het hoogtemodel. De BAG geeft het grondvlak,
+    # niet het dak, dus een overstek of balkon steekt eroverheen: vandaar de buffer.
+    gebruik_bag: bool = True
+    pandbuffer_m: float = 1.0
 
 
 @dataclass

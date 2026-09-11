@@ -81,20 +81,32 @@ def vegetatiegetal(uitsnede, soort: str) -> np.ndarray:
     return exces_groen(uitsnede.afbeelding)
 
 
-def maaiveldmasker(uitsnede, objecthoogte, instellingen: Instellingen) -> np.ndarray:
-    """Alles behalve wat hoog en glad is, dus zonder daken.
+def maaiveldmasker(uitsnede, objecthoogte, instellingen: Instellingen, bbox=None) -> np.ndarray:
+    """Het maaiveld: alles behalve gebouwen.
 
-    Zonder registratie is er geen pandenkaart, maar die is ook niet nodig: een dak is
-    simpelweg hoog en van bovenaf vlak. Dat haalt het AHN er zelf uit.
+    Twee sloten op dezelfde deur, want groen op een dak is een dure fout. Het AHN haalt
+    gebouwen eruit op hoogte en vlakheid, en de BAG haalt ze eruit op hun grondvlak. Dat
+    tweede is nodig omdat het AHN onder een pand geen maaiveld meet: daar zitten gaten in
+    het DTM, en zonder correctie zou een dak op maaiveldhoogte belanden.
     """
-    if objecthoogte is None:
-        return np.ones(uitsnede.afbeelding.shape[:2], dtype=bool)
     from luchtfoto_objecten.hoogte import hoogteruwheid
 
+    vorm = uitsnede.afbeelding.shape[:2]
     params = instellingen.classificatie
-    ruw = hoogteruwheid(objecthoogte, uitsnede.transform)
-    bouwwerk = (objecthoogte >= params.bouwwerk_min_hoogte_m) & (ruw <= params.dak_max_ruwheid_m)
-    return ~bouwwerk
+    maaiveld = np.ones(vorm, dtype=bool)
+
+    if objecthoogte is not None:
+        ruw = hoogteruwheid(objecthoogte, uitsnede.transform)
+        maaiveld &= ~((objecthoogte >= params.bouwwerk_min_hoogte_m) & (ruw <= params.dak_max_ruwheid_m))
+
+    if bbox is not None and params.gebruik_bag:
+        from luchtfoto_objecten.bag import pandmasker
+
+        panden = pandmasker(bbox, vorm, uitsnede.transform, instellingen.cache_map, params.pandbuffer_m)
+        if panden.any():
+            logger.info("BAG-panden dekken %.0f%% van het gebied, die gaan eruit", 100 * panden.mean())
+            maaiveld &= ~panden
+    return maaiveld
 
 
 def deel_in(
@@ -128,7 +140,9 @@ def deel_in(
         "dichte_begroeiing": begroeid & middenhoog & maaiveld,
         "boomkroon": boomkroon & maaiveld,
         "verharding": ~begroeid & laag & maaiveld,
-        "bouwwerk": bouwwerk,
+        # Alles wat als gebouw uit het maaiveld is gehaald, of dat nu via hoogte of via de
+        # BAG ging, komt hier als eigen klasse terug.
+        "bouwwerk": ~maaiveld,
     }
 
 
@@ -211,7 +225,7 @@ def classificeer(
 
     getal = vegetatiegetal(uitsnede, gebruikt)
     drempel = params.ndvi_drempel if gebruikt == "infrarood" else instellingen.groen.exg_ondergrens
-    maaiveld = maaiveldmasker(uitsnede, objecthoogte, instellingen)
+    maaiveld = maaiveldmasker(uitsnede, objecthoogte, instellingen, gebied.bbox)
     if grens is not None:
         maaiveld &= polygonen_naar_masker([grens], vorm, uitsnede.transform)
 

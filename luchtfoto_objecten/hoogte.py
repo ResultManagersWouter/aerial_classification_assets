@@ -104,16 +104,35 @@ def haal_objecthoogte(bbox, doelvorm, doeltransform, cache_map: Path | None = No
             vlak[vlak == leeg] = np.nan
         vlak[vlak > 1e30] = np.nan
 
-    objecthoogte = bovenkant - maaiveld
-    gemeten = np.isfinite(objecthoogte)
-    if not gemeten.any():
+    if not np.isfinite(bovenkant).any():
         logger.warning("Het AHN heeft geen dekking voor dit gebied")
         return None
+
+    # Onder een gebouw is geen maaiveldmeting, dus het DTM heeft daar gaten: bij de ArenA
+    # is 45% van het maaiveldmodel leeg, precies waar de panden staan. Die gaten op nul
+    # zetten zou elk dak op maaiveldhoogte leggen, en dan wordt een groen dak gewoon gras.
+    # Het maaiveld onder een pand ligt ongeveer op het niveau eromheen, dus vullen we de
+    # gaten met de dichtstbijzijnde gemeten maaiveldhoogte.
+    ontbrekend_maaiveld = float(np.isnan(maaiveld).mean())
+    objecthoogte = _vul_gaten(bovenkant) - _vul_gaten(maaiveld)
     logger.info(
-        "AHN opgehaald: mediaan %.2f m, p99 %.1f m, %.0f%% van het gebied gemeten",
-        float(np.nanmedian(objecthoogte)), float(np.nanpercentile(objecthoogte, 99)), 100 * gemeten.mean(),
+        "AHN opgehaald: mediaan %.2f m, p99 %.1f m, max %.1f m; %.0f%% van het maaiveldmodel "
+        "was leeg en is opgevuld vanaf de rand",
+        float(np.nanmedian(objecthoogte)), float(np.nanpercentile(objecthoogte, 99)),
+        float(np.nanmax(objecthoogte)), 100 * ontbrekend_maaiveld,
     )
     return _naar_raster(np.nan_to_num(objecthoogte, nan=0.0), transform, doelvorm, doeltransform)
+
+
+def _vul_gaten(vlak: np.ndarray) -> np.ndarray:
+    """Vult ontbrekende metingen met de dichtstbijzijnde wel gemeten waarde."""
+    from scipy.ndimage import distance_transform_edt
+
+    ontbreekt = np.isnan(vlak)
+    if not ontbreekt.any():
+        return vlak
+    _, dichtstbij = distance_transform_edt(ontbreekt, return_indices=True)
+    return vlak[tuple(dichtstbij)]
 
 
 def _naar_raster(bron: np.ndarray, brontransform, doelvorm, doeltransform) -> np.ndarray:
