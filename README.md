@@ -146,15 +146,18 @@ bestanden beginnen met de gebiedsnaam, zodat je ze los kunt openen zonder te zoe
 | bestand | inhoud |
 |---|---|
 | `<naam>.gpkg` | de classificatie op de nieuwste jaargang: een laag per klasse, plus `groen_totaal` en `verharding_totaal` |
-| `<naam>_infrarood.gpkg` | de gebruikte infraroodtegels, om als achtergrond onder de vlakken te leggen |
 | `<naam>_jaargangen.gpkg` | met `--jaargangen N`: de indeling per jaargang apart, plus `<naam>_jaargangen.csv` |
 | `<naam>_modellen.gpkg` | met `--sweep`: tien klassenindelingen naast elkaar, plus `<naam>_modellen.csv` |
 | `<naam>_classificatie.csv` | oppervlakte en aantal vlakken per klasse |
 | `invoer/` | de rasters waar het op rust: beeld, `vegetatiegetal`, `objecthoogte`, `hoogteruwheid`, en bij meerdere jaargangen `zekerheid_jaargangen` |
 
-Op een infraroodopname licht vegetatie rood op, want de eerste band is het nabij-infrarood.
-Leg `<naam>_infrarood.gpkg` onder de klassenlagen en je ziet in één oogopslag of de
-classificatie het beeld volgt: waar rood zit hoort groen te staan.
+De gebruikte opname staat in `invoer/beeld_<laag>.tif`, lossless en dus precies wat er de
+classificatie in ging. Leg die in QGIS onder de klassenlagen: op een infraroodopname licht
+vegetatie rood op, want de eerste band is het nabij-infrarood, dus je ziet in één oogopslag
+of de classificatie het beeld volgt. Waar rood zit hoort groen te staan.
+
+Elk beeld staat maar op één plek. In de classificatieroute is dat `invoer/`, bij de
+volledige analyse zitten de opnamen als rasterlaag in de GeoPackage zelf.
 
 `groen_totaal` is alle vegetatie op het maaiveld, dus zonder de boomkronen: die hangen
 erboven en zouden het maaiveld dubbel tellen.

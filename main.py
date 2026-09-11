@@ -229,8 +229,11 @@ def _schrijf_invoer(uitvoer_map: Path, beeld, invoer: dict) -> None:
 
     Niet alleen de foto dus, maar ook wat eruit is afgeleid: het vegetatiegetal en de
     objecthoogte. Daarmee kun je in QGIS een pixel aanwijzen en zien waarom hij in die
-    klasse viel. GeoTIFF omdat dit kommagetallen zijn, en die passen niet in de
-    beeldtegels van een GeoPackage.
+    klasse viel.
+
+    GeoTIFF en niet een GeoPackage: de afgeleide lagen zijn kommagetallen en die passen
+    niet in beeldtegels, en het beeld zelf blijft zo lossless. Een GeoPackage zou het als
+    JPEG hercomprimeren, en dan bewaar je niet meer wat er werkelijk in ging.
     """
     from luchtfoto_objecten.raster import schrijf_geotiff
 
@@ -297,22 +300,6 @@ def _sweep_klassen(gebied, instellingen, argumenten, grens, uitvoer_map: Path, n
     draai = overzicht.pivot_table(index=["variant", "instelling"], columns="klasse", values="oppervlakte_m2", fill_value=0)
     print(draai.round(0).to_string())
     print(f"\nModelvarianten: {pad}")
-
-
-def _schrijf_beeldpakket(uitvoer_map: Path, naam: str, beeld, soort: str) -> None:
-    """De opname waarop geclassificeerd is, als eigen bestand.
-
-    Handig om als achtergrond te laden zonder de vectorlagen mee te slepen, en om te zien
-    op welk beeld een classificatie precies rust. Op een infraroodopname is alles wat rood
-    oplicht vegetatie, dus je ziet meteen of de classificatie het beeld volgt.
-    """
-    from luchtfoto_objecten.raster import schrijf_raster_in_geopackage
-
-    pad = uitvoer_map / f"{naam}_{soort}.gpkg"
-    if pad.exists():
-        pad.unlink()
-    schrijf_raster_in_geopackage(pad, f"luchtfoto_{beeld.laag}", beeld.afbeelding, beeld.transform)
-    print(f"Gebruikte opname apart weggeschreven: {pad}")
 
 
 def _toon_boomtoets(lagen, gebied, instellingen) -> None:
@@ -386,7 +373,6 @@ def main(argumentenlijst: list[str] | None = None) -> None:
         )
         pad = schrijf_geopackage({n: l for n, l in klassen.items() if not l.empty}, uitvoer_map / f"{naam}.gpkg")
         overzicht.to_csv(uitvoer_map / f"{naam}_classificatie.csv", index=False)
-        _schrijf_beeldpakket(uitvoer_map, naam, beeld, bronnen["beeldsoort"])
         _schrijf_invoer(uitvoer_map, beeld, invoer)
         _schrijf_jaargangen(uitvoer_map, naam, bronnen)
         if argumenten.sweep:
@@ -482,7 +468,6 @@ def main(argumentenlijst: list[str] | None = None) -> None:
 
     pad = schrijf_geopackage(lagen, uitvoer_map / f"{naam}.gpkg")
     _voeg_beelden_toe(pad, gebied, instellingen)
-    _schrijf_beeldpakket(uitvoer_map, naam, beeld, beeldsoort)
     resultaat.per_thema.to_csv(uitvoer_map / "samenvatting_per_thema.csv", index=False)
     if not afwijkend.empty:
         afwijkend.drop(columns="geometry").to_csv(uitvoer_map / "afwijkingen.csv", index=False)
