@@ -81,6 +81,10 @@ def bouw_parser() -> argparse.ArgumentParser:
     parser.add_argument("--naam", help="naam van de map onder output/, standaard de gebiedsnaam")
     parser.add_argument("--zoom", type=int, help="15 is 10,5 cm/px, 16 is 5,25 cm/px en viermaal zoveel tegels")
     parser.add_argument(
+        "--beeld", choices=("infrarood", "ortho"), default=None,
+        help="waarop geclassificeerd wordt; standaard infrarood, want NDVI scheidt scherper",
+    )
+    parser.add_argument(
         "--modellen", action="store_true",
         help="zet per model een detectielaag in de GeoPackage en scoor ze tegen de BGT",
     )
@@ -152,6 +156,21 @@ def toon_afwijkingen(signaleringen: gpd.GeoDataFrame, witte_vlekken: gpd.GeoData
     return gesorteerd.drop(columns="_volgorde")
 
 
+def _schrijf_beeldpakket(uitvoer_map: Path, beeld, soort: str) -> None:
+    """De opname waarop geclassificeerd is, als eigen bestand.
+
+    Handig om als achtergrond te laden zonder de vectorlagen mee te slepen, en om te zien
+    op welk beeld een classificatie precies rust.
+    """
+    from luchtfoto_objecten.raster import schrijf_raster_in_geopackage
+
+    pad = uitvoer_map / f"{soort}.gpkg"
+    if pad.exists():
+        pad.unlink()
+    schrijf_raster_in_geopackage(pad, f"luchtfoto_{beeld.laag}", beeld.afbeelding, beeld.transform)
+    print(f"Gebruikte opname apart weggeschreven: {pad}")
+
+
 def _toon_boomtoets(lagen, gebied, instellingen) -> None:
     """Toetst de kroon- en groenveldlaag tegen het bomenregister en de groenobjecten."""
     from luchtfoto_objecten.groenstructuur import toets_tegen_register
@@ -203,6 +222,8 @@ def main(argumentenlijst: list[str] | None = None) -> None:
     instellingen = Instellingen.laden()
     if argumenten.zoom:
         instellingen.luchtfoto.zoom = argumenten.zoom
+    if argumenten.beeld:
+        instellingen.luchtfoto.beeld = argumenten.beeld
 
     grens = bepaal_grens(argumenten)
     naam = argumenten.naam or argumenten.gebied or "centrum_vergelijking"
@@ -258,6 +279,14 @@ def main(argumentenlijst: list[str] | None = None) -> None:
 
     afwijkend = toon_afwijkingen(lagen["signaleringen"], lagen["witte_vlekken"])
 
+    from luchtfoto_objecten.classificatie import classificeer
+
+    klassen, klasseoverzicht, beeld, beeldsoort = classificeer(gebied, instellingen)
+    lagen.update({naam: knip_op_grens(laag, grens) for naam, laag in klassen.items()})
+    print(f"\nClassificatie op de {beeldsoort}opname {beeld.laag}:")
+    print(klasseoverzicht.to_string(index=False))
+    klasseoverzicht.to_csv(uitvoer_map / "classificatie.csv", index=False)
+
     if argumenten.modellen:
         from luchtfoto_objecten.modeldetectie import bouw_detectielagen
         from luchtfoto_objecten.modelvergelijking import vergelijk_modellen
@@ -292,6 +321,7 @@ def main(argumentenlijst: list[str] | None = None) -> None:
 
     pad = schrijf_geopackage(lagen, uitvoer_map / f"{naam}.gpkg")
     _voeg_beelden_toe(pad, gebied, instellingen)
+    _schrijf_beeldpakket(uitvoer_map, beeld, beeldsoort)
     resultaat.per_thema.to_csv(uitvoer_map / "samenvatting_per_thema.csv", index=False)
     if not afwijkend.empty:
         afwijkend.drop(columns="geometry").to_csv(uitvoer_map / "afwijkingen.csv", index=False)

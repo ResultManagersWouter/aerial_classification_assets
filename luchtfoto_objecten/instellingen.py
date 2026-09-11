@@ -17,11 +17,20 @@ class LuchtfotoParameters:
     max_werkers: int = 4
     groenlaag: str = "auto"
     groen_minimaal_aandeel: float = 0.10
+    # Waarop de classificatie rust. Infrarood staat voor: NDVI scheidt vegetatie van
+    # verharding veel scherper dan een kleurindex, gemeten 84% van het geregistreerde
+    # groen bij 7% vals op wegdelen tegen enkele procenten precisie op kleur.
+    beeld: str = "infrarood"
 
 
 @dataclass
 class GroenParameters:
     exg_ondergrens: float = 0.035
+    # Ondergrens voor NDVI op de infraroodopname. Visueel beoordeeld op de beelden: onder
+    # 0,05 loopt er te veel verharding mee. De ijking op de registratie mag wel strenger
+    # uitkomen, maar niet losser; die kiest soms een negatieve drempel omdat de registratie
+    # zelf ruimer is dan wat er op de foto staat.
+    ndvi_ondergrens: float = 0.05
     min_oppervlakte_m2: float = 3.0
     vereenvoudiging_m: float = 0.20
     textuur_venster_m: float = 1.0
@@ -58,6 +67,13 @@ class GroenstructuurParameters:
     kroon_min_oppervlakte_m2: float = 2.0
     strook_min_oppervlakte_m2: float = 5.0
     vereenvoudiging_m: float = 0.25
+
+    # Een boom herken je aan de vorm van zijn kroon: rond, compact en niet breed. Een
+    # grasveld of berm is juist uitgestrekt of langgerekt. Deze drie grenzen scheiden
+    # de twee, en een vlak moet ze alle drie halen om als boom te tellen.
+    boom_max_breedte_m: float = 9.0        # hydraulische breedte, ruwweg de kroondiameter
+    boom_min_compactheid: float = 0.30     # 1,0 is een perfecte cirkel
+    boom_max_oppervlakte_m2: float = 250.0
 
 
 @dataclass
