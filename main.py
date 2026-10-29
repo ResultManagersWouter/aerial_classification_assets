@@ -478,3 +478,9 @@ def main(argumentenlijst: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
+    # Stobbes uit de bomen-WFS controleren: staat er in 2024, 2025 of 2026 toch een boom?
+    # Zie stobbes_controle.py. Haal het hekje weg om het te draaien, en zet main() hierboven
+    # uit als je alleen dit wilt. Uitvoer in output/stobbes/, kopie in de OneDrive-datamap.
+    # from stobbes_controle import main as controleer_stobbes
+    # controleer_stobbes([])    # of bijvoorbeeld ["--bbox", "123000", "489000", "124500", "490500"] als proef

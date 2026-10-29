@@ -47,3 +47,26 @@ def schrijf_samenvatting(samenvatting: dict, per_thema: pd.DataFrame, map_pad: P
     json_pad.write_text(json.dumps(samenvatting, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     per_thema.to_csv(csv_pad, index=False, sep=";", decimal=",")
     return json_pad, csv_pad
+
+
+def _cel(waarde) -> str:
+    """Nederlandse notatie: komma voor decimalen, punt voor duizendtallen."""
+    if waarde is None or (not isinstance(waarde, str) and pd.isna(waarde)):
+        return ""
+    if isinstance(waarde, bool):
+        return "ja" if waarde else "nee"
+    if isinstance(waarde, (int,)) or (isinstance(waarde, float) and waarde.is_integer() and abs(waarde) >= 1):
+        # Pas vanaf 10.000 een punt, anders wordt een jaartal 2.024
+        return f"{int(waarde):,}".replace(",", ".") if abs(waarde) >= 10_000 else str(int(waarde))
+    if isinstance(waarde, float):
+        return f"{waarde:.3f}".rstrip("0").rstrip(".").replace(".", ",")
+    return str(waarde)
+
+
+def tabel_md(tabel: pd.DataFrame) -> str:
+    """Een tabel als Markdown, zonder extra afhankelijkheid (pandas wil daarvoor tabulate)."""
+    kop = "| " + " | ".join(str(k).replace("_", " ") for k in tabel.columns) + " |"
+    lijn = "|" + "---|" * len(tabel.columns)
+    rijen = ["| " + " | ".join(_cel(w.item() if hasattr(w, "item") else w) for w in rij) + " |"
+             for rij in tabel.itertuples(index=False)]
+    return "\n".join([kop, lijn] + rijen)

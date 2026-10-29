@@ -598,3 +598,41 @@ dunne donkere lijnen en één die begint bij het heldere armatuur en vandaar de 
 volgt. Beide bleven op zinnige aantallen steken onder een precisie van 0,2 bij een recall
 onder 0,2. Dat levert meer opruimwerk op dan het oplost. Voor puntobjecten zijn schuine
 opnamen of een puntenwolk een realistischer route.
+
+## Stobbes en bomen controleren
+
+Twee analyses op de bomenkaart van Amsterdam (bomen-WFS), elk met een eigen startbestand.
+Instellingen staan bovenaan het bestand; druk op de groene knop of draai:
+
+```bash
+python stobbe_main.py    # welke stobbes zijn correct, welke zijn al vervangen door een nieuwe boom
+python bomen_main.py     # staat elke boom er echt, en maar één keer
+```
+
+**Stobbes** (`stobbes_analyse.py`). Per stobbe vier soorten bewijs: de registratie (staat er
+een levende boom op dezelfde plek), het kap- en herplanttraject (kapdatum, plantdatum,
+herplantinspectie), het beeld (AHN-kroon en het vegetatiegetal van de infraroodfoto's
+2023-2026, zie `stobbes_controle.py`) en straatbeeld. Het nieuwste stuk bewijs beslist.
+Uitkomst per stobbe: fout (nieuwe boom op dezelfde plek, of herplant niet geregistreerd),
+mogelijk fout (er staat nog een boom), correct, waarschijnlijk correct, of onzeker.
+
+**Bomen** (`bomen_analyse.py`). Uit AHN5 en AHN4 worden alle boomtoppen gezocht en kronen
+afgebakend (`luchtfoto_objecten/boomkronen.py`); elk boompunt wordt aan een kroon gekoppeld
+en naast het vegetatiegetal van zomer 2025 en voorjaar 2026 gelegd. Uitkomst: aanwezig,
+waarschijnlijk of mogelijk dubbel, kroon op afstand (verkeerd ingemeten), kleine boom alleen op de
+luchtfoto, jonge boom
+(gezien of niet), kroon uit 2023 niet meer groen, onder de kroon van een buurboom, of geen
+boom gevonden. Apart voor losstaande bomen (straat en groen, waar het oordeel betrouwbaar
+is) en voor alle bomen.
+
+Beide schrijven een GeoPackage met standaardopmaak voor QGIS (kleur per status, en acties
+die het Amsterdamse panorama, Google Street View en Google Maps openen) en een rapport in
+Markdown naar `output/`, met een kopie in de OneDrive-datamap van het dashboard.
+
+**Gedeelde opslag.** Alles wat lang duurt om op te halen komt één keer in de OneDrive-map
+`Amsterdam - General/data assets Amsterdam` en wordt daarna hergebruikt: de WFS-exports,
+de AHN-objecthoogte per kilometertegel, de boomkronen, de luchtfototegels als
+GeoPackage-tegelset per laag, de panorama's per punt en de metingen per punt. De map heeft
+een eigen `LEESMIJ.md`. In dit project loopt de toegang via de symlink `data/assets`,
+omdat GDAL het uitroepteken in "Result!Managers" niet aankan. Zie
+`luchtfoto_objecten/opslag.py`.
